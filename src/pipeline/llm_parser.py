@@ -101,12 +101,13 @@ def _call_llm(prompt: str, client: httpx.Client, base_url: str, api_key: str, mo
 # ---------------------------------------------------------------------------
 
 
-def parse_products_with_llm(products: list[dict], batch_size: int = 20) -> list[dict]:
+def parse_products_with_llm(products: list[dict], batch_size: int = 10, max_retries: int = 2) -> list[dict]:
     """Parse flavor/weight/variant for a list of products using LLM.
 
     Args:
         products: List of product dicts with 'product_name' key
-        batch_size: Number of products per API call (for efficiency)
+        batch_size: Number of products per API call (smaller = more reliable)
+        max_retries: Number of retries per failed batch
 
     Returns:
         Same list with flavor/weight/variant fields updated
@@ -130,6 +131,8 @@ def parse_products_with_llm(products: list[dict], batch_size: int = 20) -> list[
     with httpx.Client(timeout=60) as client:
         for i in range(0, len(products), batch_size):
             batch = products[i : i + batch_size]
+            batch_num = i // batch_size + 1
+            total_batches = (len(products) + batch_size - 1) // batch_size
 
             # Build batch prompt
             names = [p["product_name"] for p in batch]
@@ -142,55 +145,92 @@ def parse_products_with_llm(products: list[dict], batch_size: int = 20) -> list[
                 "Return ONLY the JSON array, no explanation."
             )
 
-            try:
-                resp = client.post(
-                    f"{base_url}/chat/completions",
-                    json={
-                        "model": model,
-                        "messages": [
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": batch_prompt},
-                        ],
-                        "temperature": 0,
-                        "max_tokens": 2000,
-                    },
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    timeout=60,
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                content = data["choices"][0]["message"]["content"].strip()
+            # Retry loop
+            success = False
+            for attempt in range(max_retries + 1):
+                try:
+                    resp = client.post(
+                        f"{base_url}/chat/completions",
+                        json={
+                            "model": model,
+                            "messages": [
+                                {"role": "system", "content": SYSTEM_PROMPT},
+                                {"role": "user", "content": batch_prompt},
+                            ],
+                            "temperature": 0,
+                            "max_tokens": 4000,
+                        },
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        timeout=120,
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+                    msg = data["choices"][0]["message"]
+                    content = msg.get("content", "").strip()
 
-                # Parse JSON
-                if content.startswith("```"):
-                    content = content.split("```")[1]
-                    if content.startswith("json"):
-                        content = content[4:]
-                    content = content.strip()
+                    # Fallback: thinking models may put answer in reasoning_content
+                    if not content:
+                        reasoning = msg.get("reasoning_content", "")
+                        import re
+                        json_match = re.search(r'\[.*\]', reasoning, re.DOTALL)
+                        if json_match:
+                            content = json_match.group(0)
+                        elif attempt < max_retries:
+                            time.sleep(2)
+                            continue
+                        else:
+                            print(f"  Batch {batch_num}/{total_batches}: empty content after {max_retries + 1} attempts")
+                            failed += len(batch)
+                            break
 
-                results = json.loads(content)
+                    # Parse JSON — strip markdown code blocks
+                    if content.startswith("```"):
+                        content = content.split("```")[1]
+                        if content.startswith("json"):
+                            content = content[4:]
+                        content = content.strip()
 
-                # Apply results
-                for j, result in enumerate(results):
-                    if i + j < len(products):
-                        p = products[i + j]
-                        # Only update if LLM found something (don't overwrite existing)
-                        if result.get("flavor") and not p.get("flavor"):
-                            p["flavor"] = result["flavor"]
-                        if result.get("weight") and not p.get("weight"):
-                            p["weight"] = result["weight"]
-                        if result.get("variant") and not p.get("variant"):
-                            p["variant"] = result["variant"]
-                        parsed += 1
+                    # Handle trailing commas (common LLM mistake)
+                    import re
+                    content = re.sub(r',\s*([}\]])', r'\1', content)
 
-            except (json.JSONDecodeError, KeyError, httpx.HTTPStatusError, httpx.RequestError) as e:
-                print(f"  Batch {i // batch_size + 1} failed: {e}")
-                failed += len(batch)
+                    results = json.loads(content)
 
-            # Rate limit
+                    # Apply results
+                    for j, result in enumerate(results):
+                        if i + j < len(products):
+                            p = products[i + j]
+                            # Only update if LLM found something (don't overwrite existing)
+                            if result.get("flavor") and not p.get("flavor"):
+                                p["flavor"] = result["flavor"]
+                            if result.get("weight") and not p.get("weight"):
+                                p["weight"] = result["weight"]
+                            if result.get("variant") and not p.get("variant"):
+                                p["variant"] = result["variant"]
+                            parsed += 1
+
+                    success = True
+                    break  # Success, no retry needed
+
+                except (json.JSONDecodeError, KeyError) as e:
+                    if attempt < max_retries:
+                        time.sleep(2)
+                        continue
+                    else:
+                        print(f"  Batch {batch_num}/{total_batches} failed after {max_retries + 1} attempts: {e}")
+                        failed += len(batch)
+                except (httpx.HTTPStatusError, httpx.RequestError) as e:
+                    if attempt < max_retries:
+                        time.sleep(5)
+                        continue
+                    else:
+                        print(f"  Batch {batch_num}/{total_batches} HTTP error: {e}")
+                        failed += len(batch)
+
+            # Rate limit between batches
             if i + batch_size < len(products):
                 time.sleep(1)
 

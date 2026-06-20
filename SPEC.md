@@ -125,7 +125,7 @@ Every field maps to at least one analysis category above.
 | 7 | sold_count | int | Monthly sales (normalized) | Cat 1, 2, 3, 4, 5 |
 | 8 | review_count | int | Number of reviews | Cat 5 |
 | 9 | shop_name | string | Seller name | Cat 3, 5 |
-| 10 | shop_rating | float | Seller rating | Cat 3 |
+| 10 | shop_rating | float | Seller rating (set to 0 — not available from tokopaedi API) | Cat 3 |
 | 11 | product_url | string | Product link (for deduplication) | Dedup |
 | 12 | flavor | string | Parsed from product_name (e.g., "sapi panggang") | Cat 5 |
 | 13 | weight | string | Parsed from product_name (e.g., "68g") | Cat 5 |
@@ -149,9 +149,10 @@ Raw Data (API) → Staging Layer (JSON) → Transformation Layer → Curated Ana
 |------|-------|-------|--------|-------------|
 | 1. Ingestion | Raw | Tokopedia mobile API (tokopaedi) | `data/raw/*.json` | Scrape by keyword via mobile API spoofing, store as JSON |
 | 2. Staging | Staging | Raw JSON | `data/staging/*.json` | Copy raw to staging (backup before transformation) |
-| 3. Cleaning | Transformation | Staging JSON | `data/cleaned/products_clean.csv` | Dedup, normalize, parse specs, filter Java Island |
-| 4. Validation | Transformation | Cleaned CSV | Pass/Fail | Schema check, null check, range check, dedup check |
-| 5. Curated | Curated | Cleaned CSV | `data/analytics/products.db` | Write to SQLite, add computed columns |
+| 3. Cleaning | Transformation | Staging JSON | `data/cleaned/products_clean.csv` | Dedup, normalize, filter Java Island |
+| 4. LLM Parse | Transformation | Cleaned CSV | Cleaned CSV (enriched) | LLM extracts flavor/weight/variant from product names (DeepSeek v4 Flash) |
+| 5. Validation | Transformation | Cleaned CSV | Pass/Fail | Schema check, null check, range check, dedup check |
+| 6. Curated | Curated | Cleaned CSV | `data/analytics/products.db` | Write to SQLite, add computed columns |
 
 **Why staging matters:** If transformation has a bug, you re-run from staging without re-scraping. The raw data is preserved.
 
@@ -362,6 +363,7 @@ The dashboard loads on open. Layout is fixed (4 metric cards + 3 charts), but ev
 | Scraping | Python + `tokopaedi` (PyPI) | Mobile API spoofing bypasses Akamai; actively maintained |
 | Data storage | SQLite | File-based, no server needed |
 | Data processing | Pandas | Industry standard, easy to explain |
+| Spec parsing | DeepSeek v4 Flash (SumoPod AI) | LLM extracts flavor/weight/variant from product names (80%+ accuracy) |
 | Analytics + LLM Agent | WrenAI (text-to-SQL + semantic layer) | Business-aware agent, MDL for context |
 | Interface | Chainlit | Agent-native chat UI, conversational |
 | Containerization | Docker + Docker Compose | Single container for all services |
