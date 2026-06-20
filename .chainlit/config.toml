@@ -1,0 +1,11 @@
+[project]
+enable_telemetry = false
+
+[UI]
+name = "GT Intelligence"
+description = "LLM-powered market intelligence for general trade businesses"
+default_collapse_content = true
+hide_cot = true
+
+[UI.theme]
+layout = "wide"
