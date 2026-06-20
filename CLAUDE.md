@@ -41,8 +41,8 @@ This is NOT vibe coding. Every feature starts with a spec, not a prompt.
 | Scraping | Python + httpx + BeautifulSoup | Lightweight, no heavy frameworks |
 | Data storage | SQLite | File-based, no server needed |
 | Data processing | Pandas | Industry standard, easy to explain |
-| LLM | OpenAI API (gpt-4o-mini) | Cost-effective, reliable |
-| Interface | Streamlit | Fast to build, clean UI |
+| LLM Agent | WrenAI + OpenAI gpt-4o-mini | Business-aware agent, MDL semantic layer |
+| Interface | Chainlit | Agent-native chat UI |
 | Containerization | Docker + Docker Compose | Single container for all services |
 | Deployment | SumoPod VPS (Jakarta) | Single VPS for all services |
 

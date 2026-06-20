@@ -23,6 +23,7 @@
 | 5 | [architecture-decisions.md](architecture-decisions.md) | Architecture choices and trade-offs | Pending | — |
 | 6 | [llm-grounding-strategy.md](llm-grounding-strategy.md) | How to ground LLM in data, reduce hallucination | Pending | — |
 | 7 | [database-selection.md](database-selection.md) | SQLite vs PostgreSQL vs MariaDB — SQLite wins for MVP | Final | Jun 20 |
+| 8 | [analytics-layer-stack.md](analytics-layer-stack.md) | Vanna.ai recommended for text-to-SQL + charts + Streamlit | Final | Jun 20 |
 
 ---
 

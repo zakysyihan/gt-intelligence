@@ -212,33 +212,37 @@ Analytics output maps directly to the 5 analysis categories from Section 2.
 
 ### How It Works
 
+WrenAI provides the grounding through its MDL (Modeling Definition Language) semantic layer.
+
 ```
-User Question → Extract Keywords → Query SQLite → Format Context → LLM Answer
+User Question → WrenAI MDL Context → Governed SQL → Results + Chart + Insight
 ```
+
+### MDL Layer (Business Context)
+
+The MDL encodes business logic so the LLM understands what data means:
+
+| Business Term | MDL Maps To | Example |
+|--------------|-------------|---------|
+| "terlaris" (best-selling) | sold_count DESC | Sort by sold_count |
+| "profitable" | price × sold_count | Revenue proxy |
+| "opportunity" | high demand + few sellers | Market gap |
+| "tren" (trend) | time-series aggregation | Weekly/monthly pattern |
+| "region" | shop_location (Java Island) | Geographic filter |
 
 ### Grounding Rules
 
-1. LLM never answers freely — always grounded in data
+1. LLM never answers freely — always grounded in data via MDL
 2. Every answer must reference specific data points
-3. If data doesn't cover the question, LLM says "I don't have data on that"
-4. Answers include: data source, confidence level, limitations
+3. MDL handles unanswerable questions — WrenAI returns structured errors
+4. Follow-up suggestions generated from query context
 
-### Prompt Template
+### Why MDL > Prompt Engineering
 
-```python
-SYSTEM_PROMPT = """
-You are a market intelligence analyst for general trade businesses. You answer questions
-about product pricing, trending products, and competitive landscape based on scraped
-marketplace data. Your goal is to help the business team identify winning products to develop.
-
-RULES:
-- Only answer based on the data provided in context
-- Always reference specific numbers (prices, ratings, counts)
-- If data is insufficient, say "I don't have enough data on that"
-- Keep answers concise (2-4 sentences)
-- Mention limitations if relevant (sample size, date range)
-"""
-```
+| Approach | How It Works | Limitation |
+|----------|-------------|------------|
+| **Prompt engineering** | System prompt tells LLM about data | LLM may forget or ignore instructions |
+| **MDL (WrenAI)** | Semantic layer defines data relationships | Deterministic — LLM always has correct context |
 
 ### Unanswerable Questions
 
@@ -303,20 +307,25 @@ RULES:
 | Scraping | Python + httpx + BeautifulSoup | Lightweight, no heavy frameworks |
 | Data storage | SQLite | File-based, no server needed |
 | Data processing | Pandas | Industry standard, easy to explain |
-| Analytics | Python scripts + Pandas | Simple, no extra tools |
-| LLM | OpenAI API (gpt-4o-mini) | Cost-effective, reliable |
-| Interface | Streamlit | Fast to build, clean UI |
+| Analytics + LLM Agent | WrenAI (text-to-SQL + semantic layer) | Business-aware agent, MDL for context |
+| Interface | Chainlit | Agent-native chat UI, conversational |
 | Containerization | Docker + Docker Compose | Single container for all services |
 | Deployment | Single VPS | All services on one machine |
 | Testing | Python assert + pytest | Simple verification |
 
-### Why Not Alternatives
+### Why WrenAI Over Vanna.ai
 
-- **Not Polars:** Pandas is more common, easier to explain in demo
-- **Not LangChain:** Direct OpenAI API is simpler, fewer abstractions
-- **Not PostgreSQL:** SQLite is file-based, no setup needed. PostgreSQL is the production choice — we document this.
-- **Not Flask/FastAPI:** Streamlit handles UI + backend in one
-- **Not multiple VPS:** Single VPS is enough for MVP. Scale only when needed.
+- **MDL (Modeling Definition Language):** Encodes business logic so the LLM understands what data MEANS, not just how to query it
+- **Semantic layer:** "terlaris" = sold_count, "opportunity" = high demand + few sellers — business terms mapped to data
+- **Follow-up suggestions:** Agent can suggest next questions based on context
+- **Apache 2.0 license:** Permissive, no restrictions
+- **Agent-native:** Built for AI agent workflows, not just a library
+
+### Why Chainlit Over Streamlit
+
+- **Built for conversational AI:** Chat UI, tool calls, actions out of the box
+- **Agent-native:** Designed for LLM agents, not general-purpose dashboards
+- **Pairs with WrenAI:** Both are agent-focused, natural fit
 
 ### MVP vs Production
 
@@ -325,6 +334,8 @@ This section documents what's POC/MVP and what would change in production.
 | Concern | MVP (This Project) | Production (Future) |
 |---------|-------------------|---------------------|
 | Database | SQLite (file-based) | PostgreSQL (concurrent access, millions of rows) |
+| UI | Chainlit (conversational) | Chainlit + custom dashboard for non-chat users |
+| LLM Agent | WrenAI + OpenAI | WrenAI + self-hosted LLM option |
 | Deployment | Single VPS, Docker Compose | Kubernetes, load balancer, auto-scaling |
 | Scraping | Manual run, single process | Scheduled (cron/Airflow), retry logic, distributed |
 | Scheduling | Manual | Cron job or cloud scheduler |
@@ -356,17 +367,18 @@ This section documents what's POC/MVP and what would change in production.
 - [ ] Each answer includes insight/recommendation
 
 ### LLM Interface
-- [ ] LLM answers grounded in data (never free-form)
+- [ ] WrenAI integrated with SQLite database
+- [ ] MDL configured with business context (models.yml + instructions.yml)
+- [ ] LLM answers grounded in data via MDL (never free-form)
 - [ ] Unanswerable questions handled gracefully
-- [ ] Answer includes data reference
+- [ ] Follow-up suggestions present
 - [ ] Security/privacy risks documented
 
 ### MVP Interface
-- [ ] Dashboard shows key metrics per analysis category
+- [ ] Chainlit chat UI functional
 - [ ] Prompt box accepts natural language
-- [ ] LLM output is clear and readable
-- [ ] "How was this answer generated?" shown
-- [ ] Suggested questions present (Better tier)
+- [ ] LLM output is clear and readable with charts
+- [ ] "How was this answer generated?" shown (MDL context)
 
 ### Documentation
 - [ ] README with setup instructions
@@ -385,7 +397,7 @@ This section documents what's POC/MVP and what would change in production.
 ## 10. File Structure
 
 ```
-bangunindo-analytics-mvp/
+gt-intelligence/
 ├── SPEC.md                    # This file
 ├── AGENTS.md                  # Agent rules
 ├── CLAUDE.md                  # Claude Code context
@@ -395,6 +407,7 @@ bangunindo-analytics-mvp/
 ├── docker-compose.yml         # Service orchestration
 ├── requirements.txt           # Python dependencies
 ├── .env.example               # Environment variables template (never commit .env)
+├── wren.yml                   # WrenAI MDL configuration
 ├── data/
 │   ├── raw/                   # Scraped JSON (staging layer)
 │   ├── staging/               # Backup of raw before transformation
@@ -405,12 +418,13 @@ bangunindo-analytics-mvp/
 │   │   ├── scraper.py         # Tokopedia/Shopee scraper
 │   │   ├── cleaner.py         # Data cleaning + spec parsing
 │   │   └── validator.py       # Data quality checks
-│   ├── analytics/             # Business questions
-│   │   └── insights.py        # Analytics scripts
-│   ├── llm/                   # LLM grounding
-│   │   └── interface.py       # OpenAI API wrapper
-│   └── app/                   # Streamlit UI
+│   ├── llm/                   # WrenAI integration
+│   │   └── agent.py           # WrenAI setup + MDL configuration
+│   └── app/                   # Chainlit UI
 │       └── app.py             # Main app
+├── mdl/                       # WrenAI Modeling Definition Language
+│   ├── models.yml             # Table definitions + relationships
+│   └── instructions.yml       # Business context for LLM
 ├── prompts/                   # LLM prompt templates
 ├── notebooks/                 # Exploratory analysis
 ├── tests/                     # Data quality tests
