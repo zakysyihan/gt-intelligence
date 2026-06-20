@@ -116,16 +116,20 @@ async def render_dashboard():
     top_sub = dash["top_subcategory"]
     avg_price = dash["avg_price"]
 
+    import pandas as pd
+
+    metrics_df = pd.DataFrame([
+        {"Metrik": "📦 Total Produk", "Nilai": f"{dash['total_products']:,}"},
+        {"Metrik": "🏆 Subkategori Terlaris", "Nilai": f"{top_sub[0]} ({top_sub[1]:,} terjual)"},
+        {"Metrik": "💵 Harga Rata-rata", "Nilai": f"Rp {avg_price:,.0f}"},
+        {"Metrik": "📍 Produk di Jawa", "Nilai": f"{dash['java_products']:,}"},
+    ])
+
     elements = [
         cl.Dataframe(
             name="metrics",
-            data=[
-                ["📦 Total Produk", f"{dash['total_products']:,}"],
-                ["🏆 Subkategori Terlaris", f"{top_sub[0]} ({top_sub[1]:,} terjual)"],
-                ["💵 Harga Rata-rata", f"Rp {avg_price:,.0f}"],
-                ["📍 Produk di Jawa", f"{dash['java_products']:,}"],
-            ],
-            columns=["Metrik", "Nilai"],
+            data=metrics_df,
+            display="inline",
         ),
     ]
 
