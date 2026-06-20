@@ -1,0 +1,28 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Data (too large for git)
+data/raw/
+data/staging/
+data/cleaned/
+data/analytics/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml
