@@ -4,4 +4,4 @@ The current UI is Chainlit (chat-first). The user needs dashboard-first: main ar
 
 If Streamlit can't achieve the desired UX, consider a custom HTML/CSS/JS solution with a Python backend. The user cares about smooth, polished UX — not just functionality.
 
-Work on branch feat/streamlit-ui. Verify on VPS at http://43.133.140.154.
+Work on a feature branch. Verify on VPS at http://43.133.140.154.

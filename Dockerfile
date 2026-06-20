@@ -14,12 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY src/ ./src/
 COPY data/ ./data/
+COPY .streamlit/ .streamlit/
 
-# Create .chainlit config directory
-RUN mkdir -p .chainlit
-
-# Expose Chainlit port
+# Expose Streamlit port
 EXPOSE 8000
 
-# Run Chainlit
-CMD ["chainlit", "run", "src/app/app.py", "--host", "0.0.0.0", "--port", "8000"]
+# Run Streamlit
+CMD ["streamlit", "run", "src/app/app.py", "--server.port=8000", "--server.address=0.0.0.0"]
