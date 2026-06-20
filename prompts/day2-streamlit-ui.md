@@ -1,13 +1,7 @@
-Read SPEC.md, CLAUDE.md, and research/llm-selection.md. Work on branch feat/streamlit-ui.
+Read SPEC.md, CLAUDE.md, research/llm-selection.md, and the existing src/llm/agent.py, src/llm/data_loader.py, src/app/charts.py.
 
-Rewrite the UI from Chainlit to Streamlit. The data pipeline, agent logic, and LLM research are done — reuse src/llm/agent.py and src/llm/data_loader.py. Only rewrite the UI layer.
+The current UI is Chainlit (chat-first). The user needs dashboard-first: main area is a dashboard with metric cards + charts, and a collapsible side panel on the right for the analyst agent chat. The side panel supports multiple analysis sessions (create new, revisit previous). Charts in the chat can be clicked to expand full-screen. The dashboard should have filters (subcategory, location, price range). Reuse the agent logic and chart modules — only rewrite the UI layer in Streamlit.
 
-**Layout:** Dashboard is the main view (75% width). Analyst Agent chat is a collapsible side panel (25% width). When collapsed, dashboard takes full width. When expanded, side panel shows chat with multi-session history.
+If Streamlit can't achieve the desired UX, consider a custom HTML/CSS/JS solution with a Python backend. The user cares about smooth, polished UX — not just functionality.
 
-**Dashboard tab:** 4 metric cards (st.metric with delta), 4 Plotly charts in 2x2 grid (demand, price, geo, revenue proxy). Live data from SQLite via DuckDB. Reuse charts from src/app/charts.py.
-
-**Side panel:** Collapsible via button toggle. Shows list of past analysis sessions. User can create new analysis or revisit previous. Each session preserves full chat history (SQL, table, chart, insight, follow-ups). Agent queries DuckDB, returns grounded answer with chart. Clicking a chart in chat opens it in a full-screen modal dialog.
-
-**Agent:** Reuse GTAgent from src/llm/agent.py. Connect to SumoPod DeepSeek (OPENAI_API_KEY + OPENAI_BASE_URL from .env).
-
-**Verify:** Run `streamlit run src/app/app.py` on VPS. Dashboard loads with live data. Side panel opens/closes. Ask a question, get SQL + table + chart + insight. Click chart to expand.
+Work on branch feat/streamlit-ui. Verify on VPS at http://43.133.140.154.
