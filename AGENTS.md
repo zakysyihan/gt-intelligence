@@ -89,7 +89,6 @@ Before writing any code, stop at the first rung that holds:
 
 **Tech choice rules for this project:**
 - Prefer Python stdlib (csv, json, sqlite3) over heavy frameworks
-- Streamlit over custom React dashboards
 - Pandas over Polars (more common, easier to explain)
 - OpenAI API direct over LangChain (simpler, fewer abstractions)
 - SQLite over PostgreSQL (no infra needed)
@@ -104,6 +103,25 @@ When writing prompts for Claude Code:
 3. **Include acceptance criteria** — "Verify: output matches expected schema"
 4. **Keep prompts under 10 lines**
 5. **One feature per prompt**
+
+## Parallel Tasks (Multiple Claude Sessions)
+
+**Claude Code MUST always work on a feature branch. NEVER work on `main`.**
+
+This is not optional. Every task gets its own branch, automatically. The human never needs to ask for this — it's the default behavior.
+
+### Rules
+
+1. **Create a branch for every task.** Before writing any code, create a branch: `git checkout -b feat/<task-name>` or `fix/<task-name>`. Derive the name from the task description.
+2. **Never push to main.** Push to your branch only: `git push origin <branch-name>`.
+3. **Auto-merge when done.** After finishing all work, merge your branch to main: `git checkout main && git merge feat/<task-name> && git push origin main`.
+4. **Deploy only from main.** After merging, deploy from `main`. Never from a feature branch.
+5. **Sequential deploys.** If multiple sessions deploy, merge one at a time (merge → deploy → merge → deploy).
+6. **Each session reads SPEC.md but doesn't modify it.** Only Kilo modifies SPEC.md, AGENTS.md, HISTORY.md, research/.
+
+### What Kilo Does
+
+Merges branches to main in order (backend first, then frontend). Deploys from main only. Updates HISTORY.md after each merge.
 
 ## Security
 

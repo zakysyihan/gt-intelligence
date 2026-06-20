@@ -151,11 +151,12 @@ def validate(csv_path: Path) -> dict:
 
     if "rating" in df.columns:
         ratings = pd.to_numeric(df["rating"], errors="coerce")
-        bad_rating = ((ratings < 1) | (ratings > 5) | ratings.isna()).sum()
+        # Allow 0 ratings (new products with no reviews yet) and 1-5
+        bad_rating = ((ratings < 0) | (ratings > 5) | ratings.isna()).sum()
         if bad_rating > 0:
-            range_issues.append(f"rating: {bad_rating} values outside 1-5")
+            range_issues.append(f"rating: {bad_rating} values outside 0-5")
         else:
-            print(f"PASS: Range — rating 1-5 for all rows")
+            print(f"PASS: Range — rating 0-5 for all rows (0 = no reviews yet)")
 
     if "sold_count" in df.columns:
         sold = pd.to_numeric(df["sold_count"], errors="coerce")
