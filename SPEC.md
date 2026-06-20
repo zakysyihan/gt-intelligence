@@ -257,46 +257,89 @@ The MDL encodes business logic so the LLM understands what data means:
 
 ## 7. MVP Interface
 
-### Streamlit App Layout
+### User Flow
 
 ```
-┌─────────────────────────────────────────────────┐
-│  Market Intelligence — Food & Beverage (Java)   │
-├─────────────────────────────────────────────────┤
-│ [Dashboard Tab]  [Ask Question Tab]             │
-├─────────────────────────────────────────────────┤
-│ Dashboard:                                      │
-│ - Summary cards (total products, avg price, etc)│
-│ - Subcategory breakdown chart                   │
-│ - Price distribution histogram                  │
-│ - Geographic distribution map                   │
-│ - Trend line chart                              │
-├─────────────────────────────────────────────────┤
-│ Ask Question:                                   │
-│ - Text input box                                │
-│ - Suggested questions (buttons)                 │
-│ - LLM answer with data references               │
-│ - "How was this answer generated?" explanation  │
-└─────────────────────────────────────────────────┘
+1. User opens system
+2. Sees predefined dashboard (summary metrics + charts)
+3. Clicks "Chat" to ask deeper questions
+4. Agent answers with data, charts, follow-up suggestions
+5. User can start new chat for different analysis
 ```
 
-### Interface Tiers (Target: "Better")
+### Layout
+
+```
+┌──────────────────────────────────────────────────┐
+│  GT Intelligence — Market Analyst                │
+├──────────────┬───────────────────────────────────┤
+│              │                                   │
+│  Dashboard   │  Chat                             │
+│  (left/main) │  (right/drawer)                   │
+│              │                                   │
+│  ┌────────┐  │  ┌─────────────────────────────┐ │
+│  │ Summary│  │  │ Ask: "Top produk cokelat?"  │ │
+│  │ Cards  │  │  │                             │ │
+│  └────────┘  │  │ Agent: [SQL] → [table]      │ │
+│  ┌────────┐  │  │         → [chart]           │ │
+│  │ Charts │  │  │         → [insight]         │ │
+│  │ (3-4)  │  │  │                             │ │
+│  └────────┘  │  │ Follow-up: "Compare with    │ │
+│              │  │ Bandung?"                    │ │
+│              │  └─────────────────────────────┘ │
+├──────────────┴───────────────────────────────────┤
+│  [Dashboard]  [New Chat]  [Chat History]         │
+└──────────────────────────────────────────────────┘
+```
+
+### Dashboard (Predefined Layout, Live SQL Data)
+
+The dashboard loads on open. Layout is fixed (4 metric cards + 3 charts), but every element queries live data from SQLite on each load.
+**Not customizable via UI** — data team modifies code to change layout. Metrics always reflect current data.
+
+| Element | What It Shows | Data Source |
+|---------|--------------|-------------|
+| Metric card | Total products scraped | `COUNT(*)` |
+| Metric card | Top subcategory by demand | `GROUP BY subcategory` |
+| Metric card | Average price | `AVG(price)` |
+| Metric card | Products on Java Island | `WHERE location LIKE '%Jawa%'` |
+| Chart | Subcategory demand ranking | Bar chart |
+| Chart | Price distribution | Histogram |
+| Chart | Geographic distribution | Bar chart by city |
+**Quick action buttons (map to analysis categories):**
+
+| Button | Category | Predefined Prompt |
+|--------|----------|------------------|
+| Produk Terlaris | Cat 1: Demand | "Produk mana yang paling banyak terjual bulan ini? Top 10 berdasarkan sold_count" |
+| Tren Demand | Cat 1: Demand | "Bagaimana tren penjualan 5 produk terlaris dalam beberapa waktu terakhir?" |
+| Estimasi Pendapatan | Cat 2: Profitability | "Produk mana yang menghasilkan estimasi pendapatan tertinggi (harga × terjual)?" |
+| Analisis Regional | Cat 3: Geographic | "Bagaimana distribusi penjualan across kota di Jawa? Kota mana paling banyak jual?" |
+| Tren Waktu | Cat 4: Temporal | "Bagaimana pola penjualan mingguan? Apakah ada tren naik atau turun?" |
+| Sinyal Sukses Produk | Cat 5: Product Dev | "Apa spesifikasi produk (rasa, berat, varian) yang paling laris di tiap subkategori? Produk seperti apa yang sebaiknya kami kembangkan?" |
+
+### Chat (WrenAI + Chainlit)
+
+- Each conversation is a separate analysis session
+- Agent has WrenAI tools: query data, generate charts, suggest follow-up
+- All answers grounded via MDL semantic layer
+- Follow-up suggestions after each answer
+
+### Interface Tiers (Target: "Excellent")
 
 **Minimum (must have):**
-- Dashboard with analytics per category
-- Prompt box for questions
-- Clear LLM output
-- Short explanation of how answer was generated
+- Dashboard with summary metrics
+- Chat prompt box
+- Clear LLM output with data reference
 
 **Better (target):**
-- Suggested questions aligned to the 5 analysis categories
+- Suggested questions as quick action buttons
 - Data/metric references in answers
 - Error handling for unanswerable questions
 
-**Excellent (stretch):**
-- Simple agent that can query data
-- Generate charts on demand
-- Suggest follow-up analysis
+**Excellent (target):**
+- Agent queries data via WrenAI
+- Generates charts inline
+- Suggests follow-up analysis
 
 ---
 
@@ -458,7 +501,7 @@ gt-intelligence/
 3. ~1,000 products can be scraped in under 2 hours
 4. OpenAI API key is available (user provides)
 5. Product titles contain enough info to parse flavor/weight/variant
-6. Streamlit Cloud is available for deployment (optional)
+6. Docker and VPS deployment configured (SumoPod Jakarta)
 
 ---
 
