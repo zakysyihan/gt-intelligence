@@ -195,6 +195,8 @@ def init_session_state():
         st.session_state.active_session = "Session 1"
     if "session_counter" not in st.session_state:
         st.session_state.session_counter = 1
+    if "sidebar_open" not in st.session_state:
+        st.session_state.sidebar_open = True
 
 
 # ---------------------------------------------------------------------------
@@ -302,9 +304,7 @@ def render_chat_sidebar():
                 else:
                     _render_assistant_message(msg)
 
-        # --- Chat input ---
-        if question := st.chat_input("Tanya tentang data pasar...", key="chat_input"):
-            _process_question(question)
+        # Chat input moved to main area for accessibility
 
 
 def _process_question(question: str):
@@ -401,11 +401,64 @@ def main():
     st.markdown("# 🏢 GT Intelligence — Market Analyst")
     st.markdown("*LLM-powered market intelligence untuk bisnis general trade*")
 
-    # --- Sidebar chat ---
+    # --- Sidebar (session history + quick actions only) ---
     render_chat_sidebar()
 
     # --- Main dashboard ---
     render_dashboard({})
+
+    # --- Chat section (always visible in main area) ---
+    st.divider()
+    st.markdown("## 💬 Analis Pasar")
+
+    # Session selector in main area too
+    sessions = st.session_state.sessions
+    session_names = list(sessions.keys())
+    col_sel, col_new = st.columns([4, 1])
+    with col_sel:
+        active = st.selectbox(
+            "Sesi Aktif",
+            session_names,
+            index=session_names.index(st.session_state.active_session),
+            key="main_session_select",
+        )
+        st.session_state.active_session = active
+    with col_new:
+        if st.button("➕ Sesi Baru", key="main_new_session"):
+            st.session_state.session_counter += 1
+            new_name = f"Session {st.session_state.session_counter}"
+            sessions[new_name] = {"messages": [], "created": "Baru"}
+            st.session_state.active_session = new_name
+            st.rerun()
+
+    # Quick actions in main area
+    qa_cols = st.columns(3)
+    quick_actions = [
+        ("🏆", "Top 10 produk terlaris bulan ini"),
+        ("📈", "Tren penjualan per subkategori"),
+        ("💰", "Estimasi pendapatan tertinggi (harga × terjual)"),
+        ("🗺️", "Distribusi penjualan per kota di Jawa"),
+        ("📊", "Distribusi harga rata-rata per subkategori"),
+        ("🍫", "Spesifikasi produk paling laris (rasa, berat)"),
+    ]
+    for i, (emoji, prompt) in enumerate(quick_actions):
+        with qa_cols[i % 3]:
+            if st.button(f"{emoji} {prompt[:40]}...", key=f"main_qa_{i}", use_container_width=True):
+                _process_question(prompt)
+
+    # Chat history in main area
+    active_msgs = sessions[st.session_state.active_session]["messages"]
+    for msg in active_msgs:
+        role = msg["role"]
+        with st.chat_message(role, avatar="🧑‍💼" if role == "user" else "🤖"):
+            if role == "user":
+                st.markdown(msg["content"])
+            else:
+                _render_assistant_message(msg)
+
+    # Chat input in main area (always visible)
+    if question := st.chat_input("Tanya tentang data pasar..."):
+        _process_question(question)
 
 
 if __name__ == "__main__":
