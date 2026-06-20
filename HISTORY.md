@@ -7,8 +7,52 @@
 
 ### Session 2 — Saturday Jun 20, 2026 (Day 1)
 
-**Goal:** Spec refinement — business questions, dataset scope, analysis categories
-**Active time:** ~2.5 hours (12:40 - 15:20)
+**Goal:** Build everything — data pipeline, UI agent, LLM research, VPS deployment
+**Active time:** ~6 hours (12:40 - 22:15) | **Deadline:** Mon Jun 22, 09:30 WIB
+**Hours remaining:** ~22h
+
+#### Timeline (Active Working Periods)
+
+| Time | Activity | Duration |
+|------|----------|----------|
+| 12:40 - 12:51 | Business questions refinement, SPEC.md update | 11 min |
+| 12:51 - 14:00 | SPEC.md rewrite (full), dataset scope, analysis categories | 1h 9m |
+| 14:00 - 15:00 | WrenAI decision, Chainlit UI architecture, quick actions | 1h |
+| 15:00 - 16:00 | GitHub repo (gt-intelligence), VPS provisioning (SumoPod Jakarta) | 1h |
+| 16:00 - 17:00 | VPS setup (Docker, SSH keys, GitHub auth, repo clone) | 1h |
+| 17:00 - 18:00 | Claude 1 terminal: data pipeline + Tokopedia scraping (672 products) | 1h (Claude) |
+| 18:00 - 19:00 | Claude 2 terminal: WrenAI + Chainlit interface build | 1h (Claude) |
+| 19:00 - 20:00 | Claude 3 terminal: deep LLM research (BIRD-Interact, GDPval-AA) | 1h (Claude) |
+| 20:00 - 22:15 | Kilo: validate Claude outputs, coordinate, update docs | 2h 15m |
+
+#### Parallel Agent Work
+
+| Agent | Task | Output | Status |
+|-------|------|--------|--------|
+| **Claude 1** | Data pipeline (scraper → cleaning → validation → SQLite) | 672 real Tokopedia products, 7/7 checks passed | ✅ Done |
+| **Claude 2** | WrenAI agent + Chainlit UI | app.py, agent.py, charts.py, docker-compose.yml | ✅ Done |
+| **Claude 3** | Deep LLM research (benchmarks, evals, model comparison) | 297-line research with 8 sources | ✅ Done |
+| **Kilo** | Coordination, validation, SPEC updates, docs | SPEC.md, HISTORY.md, research/INDEX.md | ✅ Done |
+
+#### Decisions Made
+
+| # | Decision | Rationale | Status |
+|---|----------|-----------|--------|
+| 9-25 | (see Session 3 for pipeline decisions) | | Applied |
+| 26 | WrenAI + Chainlit over Streamlit + Vanna | MDL semantic layer for business-aware LLM | Applied |
+| 27 | Drop YAML dashboard customization | Test case says "not over-engineering" (10% weight) | Applied |
+| 28 | Dashboard = live SQL, fixed layout | Matches PDF: "one dashboard + one prompt box" | Applied |
+| 29 | 6 quick actions mapped to analysis categories | Business team clicks, no code needed | Applied |
+| 30 | Tiered LLM: DeepSeek for parser + agent, fallback O3-Mini | Free on SumoPod, simple schema compensates | Applied |
+| 31 | Branch rules: every Claude session on feature branch | Prevents conflicts in parallel work | Applied |
+
+#### Key Findings (Claude 3 LLM Research)
+
+- **Our schema is trivial:** 1 table, 14 columns. All models score 94%+ on simple SQL (TokenMix)
+- **WrenAI compensates for weaker LLMs:** dry-plan validates SQL, --guided mode forces workflow, MDL constrains the view
+- **DeepSeek's BIRD-Interact weakness is real but irrelevant:** The gap measures complex SQL (multi-table JOINs). We have 1 table.
+- **Recommendation:** Try DeepSeek V4 Flash (free) → O3-Mini ($0.06) → Gemini 2.5 Pro ($0.04) if needed
+- **SLM-SQL paper:** Fine-tuned 1.5B model matches Claude Opus on standalone SQL — but standalone ≠ agentic
 
 #### Steps Completed
 
@@ -205,12 +249,18 @@
 
 #### Open Items
 
-- [x] Data pipeline built and verified
-- [ ] Analytics layer (Day 2)
-- [ ] LLM interface (Day 2)
-- [ ] Streamlit dashboard (Day 2)
-- [ ] Architecture doc (Day 3)
-- [ ] Demo video (Day 3)
+- [x] Data pipeline built and verified (672 products)
+- [x] WrenAI + Chainlit interface built
+- [x] Deep LLM research completed
+- [ ] Analytics scripts (5 business questions) — needed
+- [ ] Dockerfile (docker-compose.yml exists, Dockerfile missing) — needed
+- [ ] mdl/ directory (MDL configuration) — needed
+- [ ] .env.example — needed
+- [ ] Integration testing (WrenAI + real data) — needed
+- [ ] Architecture doc (3-5 pages) — needed
+- [ ] README.md — needed
+- [ ] Presentation (5 slides) — needed
+- [ ] Demo video (7-10 min) — needed
 
 ---
 
