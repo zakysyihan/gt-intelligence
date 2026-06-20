@@ -1,8 +1,9 @@
 """GT Intelligence — Streamlit Dashboard + Analyst Chat.
 
-Dashboard-first layout:
-- Main area: metric cards + filters + charts
-- Sidebar (collapsible): analyst agent chat with multiple sessions
+Dashboard-first layout using st.columns (not Streamlit sidebar):
+- Left panel (wide): metric cards + filters + charts
+- Right panel (narrow): analyst agent chat with multiple sessions
+- Right panel has a toggle button to collapse/expand
 
 Reuses: agent.py (GTAgent), data_loader.py, charts.py
 Only this file is Streamlit-specific.
@@ -40,7 +41,7 @@ st.set_page_config(
     page_title="GT Intelligence",
     page_icon="🏢",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # ---------------------------------------------------------------------------
@@ -68,31 +69,13 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
-    /* Sidebar chat */
-    [data-testid="stSidebar"] {
-        background-color: #f8fafc;
+    /* Chat panel */
+    .chat-panel {
+        background: #f8fafc;
         border-left: 1px solid #e2e8f0;
-    }
-    /* Chat message bubbles */
-    .chat-msg-user {
-        background: #2563eb;
-        color: white;
-        border-radius: 16px 16px 4px 16px;
-        padding: 10px 16px;
-        margin: 4px 0;
-        max-width: 90%;
-        float: right;
-        clear: both;
-    }
-    .chat-msg-assistant {
-        background: #f1f5f9;
-        color: #1e293b;
-        border-radius: 16px 16px 16px 4px;
-        padding: 10px 16px;
-        margin: 4px 0;
-        max-width: 90%;
-        float: left;
-        clear: both;
+        padding: 16px;
+        border-radius: 0 12px 12px 0;
+        min-height: 600px;
     }
     /* Section headers */
     .section-header {
@@ -102,17 +85,6 @@ st.markdown("""
         margin: 1rem 0 0.5rem 0;
         padding-bottom: 0.3rem;
         border-bottom: 2px solid #e2e8f0;
-    }
-    /* SQL code block */
-    .sql-block {
-        background: #1e293b;
-        color: #e2e8f0;
-        border-radius: 8px;
-        padding: 12px 16px;
-        font-family: 'JetBrains Mono', 'Fira Code', monospace;
-        font-size: 0.82rem;
-        overflow-x: auto;
-        margin: 8px 0;
     }
     /* Insight box */
     .insight-box {
@@ -124,22 +96,15 @@ st.markdown("""
         font-size: 0.9rem;
         line-height: 1.5;
     }
-    /* Follow-up chips */
-    .followup-chip {
-        display: inline-block;
-        background: #f1f5f9;
-        border: 1px solid #cbd5e1;
-        border-radius: 20px;
-        padding: 4px 12px;
-        margin: 2px 4px;
-        font-size: 0.8rem;
-        color: #475569;
-        cursor: pointer;
-    }
     /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    /* Compact chat messages */
+    [data-testid="stChatMessage"] {
+        padding: 8px 12px;
+        margin-bottom: 4px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -168,19 +133,6 @@ def get_dashboard_data():
     return agent.get_dashboard_data()
 
 
-@st.cache_data
-def get_filter_options():
-    """Get unique values for filter widgets."""
-    agent = get_agent()
-    if agent is None:
-        return [], [], (0, 1500000)
-    con = agent.con
-    subcats = [r[0] for r in con.execute("SELECT DISTINCT subcategory FROM products ORDER BY subcategory").fetchall()]
-    locations = [r[0] for r in con.execute("SELECT DISTINCT shop_location FROM products ORDER BY shop_location").fetchall()]
-    price_range = con.execute("SELECT MIN(price), MAX(price) FROM products").fetchone()
-    return subcats, locations, (int(price_range[0]), int(price_range[1]))
-
-
 # ---------------------------------------------------------------------------
 # Session state initialization
 # ---------------------------------------------------------------------------
@@ -195,16 +147,16 @@ def init_session_state():
         st.session_state.active_session = "Session 1"
     if "session_counter" not in st.session_state:
         st.session_state.session_counter = 1
-    if "sidebar_open" not in st.session_state:
-        st.session_state.sidebar_open = True
+    if "chat_open" not in st.session_state:
+        st.session_state.chat_open = True
 
 
 # ---------------------------------------------------------------------------
-# Dashboard rendering
+# Dashboard rendering (left panel)
 # ---------------------------------------------------------------------------
 
-def render_dashboard(filters: dict):
-    """Render the main dashboard area with metrics, filters, and charts."""
+def render_dashboard():
+    """Render the dashboard in the left panel."""
     dash = get_dashboard_data()
     if dash is None:
         st.error("Agent tidak tersedia. Pastikan OPENAI_API_KEY sudah di-set.")
@@ -245,66 +197,69 @@ def render_dashboard(filters: dict):
 
 
 # ---------------------------------------------------------------------------
-# Chat rendering (in sidebar)
+# Chat panel rendering (right panel)
 # ---------------------------------------------------------------------------
 
-def render_chat_sidebar():
-    """Render the analyst chat in the sidebar."""
-    with st.sidebar:
-        st.markdown("## 🤖 Analis Pasar")
+def render_chat_panel():
+    """Render the analyst chat in the right panel."""
+    st.markdown("### 🤖 Analis Pasar")
 
-        # --- Session management ---
-        sessions = st.session_state.sessions
-        session_names = list(sessions.keys())
+    # --- Session management ---
+    sessions = st.session_state.sessions
+    session_names = list(sessions.keys())
 
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            active = st.selectbox(
-                "Sesi",
-                session_names,
-                index=session_names.index(st.session_state.active_session),
-                key="session_select",
-                label_visibility="collapsed",
-            )
-            st.session_state.active_session = active
-        with col2:
-            if st.button("➕", key="new_session", help="Sesi baru"):
-                st.session_state.session_counter += 1
-                new_name = f"Session {st.session_state.session_counter}"
-                sessions[new_name] = {"messages": [], "created": "Baru"}
-                st.session_state.active_session = new_name
-                st.rerun()
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        active = st.selectbox(
+            "Sesi",
+            session_names,
+            index=session_names.index(st.session_state.active_session),
+            key="session_select",
+            label_visibility="collapsed",
+        )
+        st.session_state.active_session = active
+    with col2:
+        if st.button("➕", key="new_session", help="Sesi baru"):
+            st.session_state.session_counter += 1
+            new_name = f"Session {st.session_state.session_counter}"
+            sessions[new_name] = {"messages": [], "created": "Baru"}
+            st.session_state.active_session = new_name
+            st.rerun()
 
-        st.divider()
+    st.divider()
 
-        # --- Quick actions ---
-        st.markdown("**⚡ Quick Actions**")
-        quick_actions = [
-            ("🏆", "Top 10 produk terlaris bulan ini"),
-            ("📈", "Tren penjualan per subkategori"),
-            ("💰", "Estimasi pendapatan tertinggi (harga × terjual)"),
-            ("🗺️", "Distribusi penjualan per kota di Jawa"),
-            ("📊", "Distribusi harga rata-rata per subkategori"),
-            ("🍫", "Spesifikasi produk paling laris (rasa, berat)"),
-        ]
+    # --- Quick actions ---
+    st.markdown("**⚡ Quick Actions**")
+    quick_actions = [
+        ("🏆", "Top 10 produk terlaris bulan ini"),
+        ("📈", "Tren penjualan per subkategori"),
+        ("💰", "Estimasi pendapatan tertinggi"),
+        ("🗺️", "Distribusi per kota di Jawa"),
+        ("📊", "Harga rata-rata per subkategori"),
+        ("🍫", "Spesifikasi paling laris"),
+    ]
 
-        for emoji, prompt in quick_actions:
-            if st.button(f"{emoji} {prompt[:35]}...", key=f"qa_{prompt[:20]}"):
+    qa_cols = st.columns(2)
+    for i, (emoji, prompt) in enumerate(quick_actions):
+        with qa_cols[i % 2]:
+            if st.button(f"{emoji} {prompt}", key=f"qa_{i}", use_container_width=True):
                 _process_question(prompt)
 
-        st.divider()
+    st.divider()
 
-        # --- Chat history ---
-        active_msgs = sessions[st.session_state.active_session]["messages"]
-        for msg in active_msgs:
-            role = msg["role"]
-            with st.chat_message(role, avatar="🧑‍💼" if role == "user" else "🤖"):
-                if role == "user":
-                    st.markdown(msg["content"])
-                else:
-                    _render_assistant_message(msg)
+    # --- Chat history ---
+    active_msgs = sessions[st.session_state.active_session]["messages"]
+    for msg in active_msgs:
+        role = msg["role"]
+        with st.chat_message(role, avatar="🧑‍💼" if role == "user" else "🤖"):
+            if role == "user":
+                st.markdown(msg["content"])
+            else:
+                _render_assistant_message(msg)
 
-        # Chat input moved to main area for accessibility
+    # --- Chat input ---
+    if question := st.chat_input("Tanya tentang data pasar...", key="chat_input"):
+        _process_question(question)
 
 
 def _process_question(question: str):
@@ -343,7 +298,7 @@ def _process_question(question: str):
 
 
 def _render_assistant_message(msg: dict):
-    """Render an assistant message in the sidebar chat."""
+    """Render an assistant message."""
     # Error handling
     if msg.get("error"):
         if msg.get("is_unanswerable"):
@@ -397,68 +352,30 @@ def main():
         st.error("⚠️ OPENAI_API_KEY belum di-set. Tambahkan ke file `.env`.")
         st.stop()
 
-    # --- Header ---
-    st.markdown("# 🏢 GT Intelligence — Market Analyst")
-    st.markdown("*LLM-powered market intelligence untuk bisnis general trade*")
-
-    # --- Sidebar (session history + quick actions only) ---
-    render_chat_sidebar()
-
-    # --- Main dashboard ---
-    render_dashboard({})
-
-    # --- Chat section (always visible in main area) ---
-    st.divider()
-    st.markdown("## 💬 Analis Pasar")
-
-    # Session selector in main area too
-    sessions = st.session_state.sessions
-    session_names = list(sessions.keys())
-    col_sel, col_new = st.columns([4, 1])
-    with col_sel:
-        active = st.selectbox(
-            "Sesi Aktif",
-            session_names,
-            index=session_names.index(st.session_state.active_session),
-            key="main_session_select",
-        )
-        st.session_state.active_session = active
-    with col_new:
-        if st.button("➕ Sesi Baru", key="main_new_session"):
-            st.session_state.session_counter += 1
-            new_name = f"Session {st.session_state.session_counter}"
-            sessions[new_name] = {"messages": [], "created": "Baru"}
-            st.session_state.active_session = new_name
+    # --- Header with chat toggle ---
+    col_header, col_toggle = st.columns([6, 1])
+    with col_header:
+        st.markdown("# 🏢 GT Intelligence — Market Analyst")
+    with col_toggle:
+        st.markdown("")
+        toggle_label = "💬 Tutup Chat" if st.session_state.chat_open else "💬 Buka Chat"
+        if st.button(toggle_label, key="chat_toggle", use_container_width=True):
+            st.session_state.chat_open = not st.session_state.chat_open
             st.rerun()
 
-    # Quick actions in main area
-    qa_cols = st.columns(3)
-    quick_actions = [
-        ("🏆", "Top 10 produk terlaris bulan ini"),
-        ("📈", "Tren penjualan per subkategori"),
-        ("💰", "Estimasi pendapatan tertinggi (harga × terjual)"),
-        ("🗺️", "Distribusi penjualan per kota di Jawa"),
-        ("📊", "Distribusi harga rata-rata per subkategori"),
-        ("🍫", "Spesifikasi produk paling laris (rasa, berat)"),
-    ]
-    for i, (emoji, prompt) in enumerate(quick_actions):
-        with qa_cols[i % 3]:
-            if st.button(f"{emoji} {prompt[:40]}...", key=f"main_qa_{i}", use_container_width=True):
-                _process_question(prompt)
+    st.markdown("*LLM-powered market intelligence untuk bisnis general trade*")
 
-    # Chat history in main area
-    active_msgs = sessions[st.session_state.active_session]["messages"]
-    for msg in active_msgs:
-        role = msg["role"]
-        with st.chat_message(role, avatar="🧑‍💼" if role == "user" else "🤖"):
-            if role == "user":
-                st.markdown(msg["content"])
-            else:
-                _render_assistant_message(msg)
+    # --- Two-column layout: Dashboard (left) + Chat (right) ---
+    if st.session_state.chat_open:
+        dash_col, chat_col = st.columns([2, 1])
 
-    # Chat input in main area (always visible)
-    if question := st.chat_input("Tanya tentang data pasar..."):
-        _process_question(question)
+        with dash_col:
+            render_dashboard()
+
+        with chat_col:
+            render_chat_panel()
+    else:
+        render_dashboard()
 
 
 if __name__ == "__main__":
