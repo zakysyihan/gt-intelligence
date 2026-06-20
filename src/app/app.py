@@ -18,6 +18,7 @@ from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -367,18 +368,20 @@ def main():
     # --- Sidebar chat ---
     render_chat_sidebar()
 
-    # --- Floating "Buka Chat" button (visible when sidebar collapsed) ---
-    # This uses Streamlit's native sidebar — the > arrow on the left edge
-    # reopens it. We add a JS-based floating button as a more visible hint.
-    st.markdown("""
-    <div class="chat-float-btn" onclick="
-        // Find and click Streamlit's sidebar expand button
-        const btn = document.querySelector('[data-testid="stSidebarCollapseButton"]');
-        if (btn) btn.click();
-    ">
-        💬 Buka Chat
+    # --- Floating "Buka Chat" button (opens sidebar via JS) ---
+    components.html("""
+    <div style="position:fixed;bottom:24px;right:24px;z-index:999;">
+        <button onclick="
+            // Find and click Streamlit's sidebar expand button
+            const btn = document.querySelector('[data-testid="stSidebarCollapseButton"]');
+            if (btn) btn.click();
+        " style="
+            background:#2563eb;color:white;border:none;border-radius:50px;
+            padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;
+            box-shadow:0 4px 12px rgba(37,99,235,0.4);
+        ">💬 Buka Chat</button>
     </div>
-    """, unsafe_allow_html=True)
+    """, height=60)
 
     # --- Main dashboard ---
     render_dashboard()
