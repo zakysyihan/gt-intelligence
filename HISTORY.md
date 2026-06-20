@@ -255,3 +255,30 @@
 - Teaching experience (Hacktiv8, Binus Center)
 - Solo dev products (Halaqah AI, Latent Signal)
 - Azure AI Engineer Associate certified
+
+---
+
+### Session 6 — Saturday Jun 20, 2026 (Day 2 evening)
+
+**Goal:** Redesign UI from Chainlit (chat-first) to Streamlit (dashboard-first)
+**Branch:** feat/streamlit-dashboard
+
+#### What Changed
+- Rewrote `src/app/app.py` from Chainlit to Streamlit
+- Dashboard-first layout: main area = metrics + charts + filters, sidebar = analyst chat
+- Multiple chat sessions with create/switch
+- Expandable charts in chat responses
+- Custom CSS for polished metric cards and chat styling
+- Updated Dockerfile (chainlit → streamlit)
+- Created `.streamlit/config.toml` (theme, server config)
+- Removed dead `wrenai>=0.10.0` dependency
+
+#### What Stayed Same
+- `src/llm/agent.py` — GTAgent class (UI-agnostic)
+- `src/llm/data_loader.py` — SQLite → DuckDB loader
+- `src/app/charts.py` — Plotly go.Figure charts
+- All business logic and prompts
+
+#### Deployed
+- Feature branch: feat/streamlit-dashboard
+- VPS: http://43.133.140.154:8000
