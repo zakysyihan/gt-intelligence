@@ -530,3 +530,25 @@
 - Teaching experience (Hacktiv8, Binus Center)
 - Solo dev products (Halaqah AI, Latent Signal)
 - Azure AI Engineer Associate certified
+
+---
+
+### Session 5 — Saturday Jun 20, 2026 (Day 2)
+
+**Goal:** Validate data + Build WrenAI agent + Chainlit interface
+**Active time:** ~3 hours
+
+#### Steps Completed
+
+1. **Data Validation on VPS** — All 7/7 checks PASSED (672 products, 16 cols, 0 nulls in critical fields, all Java Island)
+2. **WrenAI Architecture** — Chose OpenAI text-to-SQL + MDL semantic layer (WrenAI v2 pip fits 2GB VPS, legacy Docker too heavy)
+3. **Components Built** — data_loader.py, mdl_manifest.py, agent.py, app.py, charts.py, Dockerfile, docker-compose.yml
+4. **Deployed** — http://43.133.140.154:8000
+5. **Fixed** — cl.Dataframe requires pandas DataFrame, not list of lists
+
+#### Known Issues
+- Database fragility (lost during git clean)
+- Duplicate products (same name, different listings)
+- Date hallucination in unanswerable messages
+- flavor/weight/variant 40-65% null
+- No "sweets" subcategory in data
