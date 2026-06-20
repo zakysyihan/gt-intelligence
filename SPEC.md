@@ -94,9 +94,21 @@ The business team needs to answer 5 categories of analysis. Each category maps t
 
 | Layer | Source | Method | Priority |
 |-------|--------|--------|----------|
-| 1 (Primary) | Tokopedia + Shopee | GraphQL API scraping | First attempt |
-| 2 (Secondary) | BPS Statistics Indonesia | CSV/Excel download | If scraping fails |
-| 3 (Tertiary) | Kaggle / public repos | Dataset search | Last resort |
+| 1 (Primary) | Tokopedia | Mobile API via `tokopaedi` library (user-agent spoofing) | Working ✓ |
+| 2 (Secondary) | Shopee | curl_cffi TLS impersonation | Blocked (403) |
+| 3 (Tertiary) | Blibli | Backend JSON API | Blocked (403) |
+| 4 (Fallback) | Kaggle | `salmanabdu/tokopedia-product-reviews-2025` (65K reviews) | Requires credentials |
+
+**Why tokopaedi works:** Tokopedia's Akamai Bot Manager blocks server-side GraphQL API access and headless browsers. The `tokopaedi` library bypasses this by spoofing mobile user-agents against Tokopedia's mobile API endpoints, which have lighter anti-bot protection than the desktop web interface.
+
+**What we tried that didn't work:**
+- Direct GraphQL API (`gql.tokopedia.com/graphql/SearchProductQueryV4`) — returns empty results without browser cookies
+- `curl_cffi` with TLS fingerprint impersonation — HTTP/2 stream killed by Akamai
+- `X-TKPD-AKAMAI: pdpGetLayout` header — triggers Akamai to kill the connection
+- Playwright/Obscura headless browsers — Akamai JS challenge blocks product rendering
+- Shopee API — 403 Forbidden
+- Blibli backend API — 403 Forbidden
+- Bukalapak — 404/406
 
 ### Data Fields
 
@@ -135,7 +147,7 @@ Raw Data (API) → Staging Layer (JSON) → Transformation Layer → Curated Ana
 
 | Step | Layer | Input | Output | What Happens |
 |------|-------|-------|--------|-------------|
-| 1. Ingestion | Raw | Tokopedia/Shopee API | `data/raw/*.json` | Scrape by keyword, store responses as-is |
+| 1. Ingestion | Raw | Tokopedia mobile API (tokopaedi) | `data/raw/*.json` | Scrape by keyword via mobile API spoofing, store as JSON |
 | 2. Staging | Staging | Raw JSON | `data/staging/*.json` | Copy raw to staging (backup before transformation) |
 | 3. Cleaning | Transformation | Staging JSON | `data/cleaned/products_clean.csv` | Dedup, normalize, parse specs, filter Java Island |
 | 4. Validation | Transformation | Cleaned CSV | Pass/Fail | Schema check, null check, range check, dedup check |
@@ -347,13 +359,13 @@ The dashboard loads on open. Layout is fixed (4 metric cards + 3 charts), but ev
 
 | Layer | Tool | Why |
 |-------|------|-----|
-| Scraping | Python + httpx + BeautifulSoup | Lightweight, no heavy frameworks |
+| Scraping | Python + `tokopaedi` (PyPI) | Mobile API spoofing bypasses Akamai; actively maintained |
 | Data storage | SQLite | File-based, no server needed |
 | Data processing | Pandas | Industry standard, easy to explain |
 | Analytics + LLM Agent | WrenAI (text-to-SQL + semantic layer) | Business-aware agent, MDL for context |
 | Interface | Chainlit | Agent-native chat UI, conversational |
 | Containerization | Docker + Docker Compose | Single container for all services |
-| Deployment | Single VPS | All services on one machine |
+| Deployment | Single VPS (43.133.140.154) | All services on one machine |
 | Testing | Python assert + pytest | Simple verification |
 
 ### Why WrenAI Over Vanna.ai
@@ -380,7 +392,7 @@ This section documents what's POC/MVP and what would change in production.
 | UI | Chainlit (conversational) | Chainlit + custom dashboard for non-chat users |
 | LLM Agent | WrenAI + OpenAI | WrenAI + self-hosted LLM option |
 | Deployment | Single VPS, Docker Compose | Kubernetes, load balancer, auto-scaling |
-| Scraping | Manual run, single process | Scheduled (cron/Airflow), retry logic, distributed |
+| Scraping | Manual run, tokopaedi mobile API | Scheduled (cron/Airflow), retry logic, distributed, proxy rotation |
 | Scheduling | Manual | Cron job or cloud scheduler |
 | Monitoring | Logs only | Prometheus + Grafana |
 | Authentication | None (single user) | Multi-user auth, RBAC |

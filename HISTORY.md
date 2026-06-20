@@ -98,21 +98,55 @@
 ### Session 3 — Saturday Jun 20, 2026 (Day 1 continued)
 
 **Goal:** Build full data pipeline — scraper, cleaner, validator, SQLite curated layer
-**Active time:** ~1.5 hours (16:00 - 17:45)
+**Active time:** ~3 hours (15:55 - 19:00)
 
 #### Steps Completed
 
 1. **Pipeline Architecture Built**
-   - `src/pipeline/scraper.py` — Data collection (API + synthetic fallback)
+   - `src/pipeline/scraper.py` — Data collection (tokopaedi mobile API)
    - `src/pipeline/cleaner.py` — Cleaning, normalization, spec parsing, computed columns
    - `src/pipeline/validator.py` — 7 data quality checks (schema, types, nulls, ranges, dedup, geography, row count)
    - `src/pipeline/run_pipeline.py` — Main orchestrator (5 steps: scrape → stage → clean → validate → SQLite)
-   - `requirements.txt` — httpx, pandas, pytest
+   - `requirements.txt` — tokopaedi, httpx, pandas, pytest
 
-2. **Tokopedia API Investigation** (extensive)
-   - Tested GraphQL endpoint `https://gql.tokopedia.com/graphql/SearchProductQueryV4`
-   - Tried: direct API, session cookies, different query formats, batch requests
-   - Result: All return "Invalid request schema received" — API is protected
+2. **Tokopedia Scraping — Extensive Exploration (FAILED approaches)**
+
+   We tried EVERY reasonable approach to scrape Tokopedia:
+
+   | Approach | Result | Why Failed |
+   |----------|--------|------------|
+   | Direct GraphQL API (httpx) | Empty results (0 products) | API needs browser cookies; query works but returns no data |
+   | curl_cffi TLS impersonation | HTTP/2 stream killed | Akamai detects and kills the connection |
+   | `X-TKPD-AKAMAI: pdpGetLayout` header | Connection killed | Header triggers Akamai bot detection |
+   | Playwright headless browser | JS challenge blocks rendering | Akamai serves challenge page, products never load |
+   | Obscura (stealth headless) | Same as Playwright | Akamai JS challenge still blocks |
+   | Shopee API | 403 Forbidden | Shopee has its own anti-bot (DataDome) |
+   | Blibli backend API | 403 Forbidden | Blibli also has anti-bot protection |
+   | Bukalapak | 404/406 | Endpoint deprecated or protected |
+
+3. **Deep Research Phase**
+   - Installed `curl_cffi` on VPS — tested all 11 impersonation modes (chrome, safari, edge variants)
+   - Installed Playwright + Chromium on VPS — tested with stealth mode
+   - Installed Obscura v0.1.8 (Rust headless browser) — tested CDP server mode
+   - Tested GraphQL introspection — disabled by Tokopedia
+   - Tested every GraphQL query format variation — found that `name`, `url`, `imageUrl`, `originalPrice`, `stock`, `condition`, `rating`, `shop{name city}` work, but `price`, `stats`, `category` fields cause schema errors
+   - Researched `nodriver`, `undetected-chromedriver`, `wafer` (Akamai solver), `hyper-sdk` (commercial)
+   - Found `tokopaedi` library on PyPI — mobile API spoofing approach
+
+4. **BREAKTHROUGH: tokopaedi library**
+   - `pip install tokopaedi` — 0.2.3 (Aug 2025)
+   - Uses mobile user-agent spoofing to bypass Akamai's heaviest protections
+   - Provides `search(keyword, max_result, debug)` → returns `ProductData` objects
+   - Fields: product_name, price, rating, sold_count, shop.name, shop.city, category, url, weight, etc.
+   - Successfully scraped 672 real Tokopedia products from Java Island sellers
+
+5. **Pipeline Verified on VPS**
+   - All 7/7 validation checks PASSED
+   - 672 real products in SQLite database
+   - 3 subcategories: candy (167), chocolate (177), snacks (328)
+   - Avg price: Rp 44,743, Avg rating: 4.41
+   - 374 unique shops across Java Island
+   - Top cities: Surabaya (103), Kab. Bandung (72), Jakarta Barat (58)
    - Tested Shopee API: 403 Forbidden
    - Installed Playwright + Chromium on VPS: ERR_HTTP2_PROTOCOL_ERROR (detected)
    - **Conclusion:** Both marketplaces have Akamai bot protection blocking server-side scraping
@@ -141,10 +175,13 @@
 
 | # | Decision | Rationale | Status |
 |---|----------|-----------|--------|
-| 19 | Use synthetic data as fallback | Tokopedia/Shopee have Akamai bot protection blocking server scraping | Applied |
+| 19 | Use synthetic data as fallback | Tokopedia/Shopee have Akamai bot protection blocking server scraping | Superseded |
 | 20 | Document scraping limitation explicitly | Test case rewards transparency about trade-offs | Applied |
 | 21 | Install Playwright on VPS | Attempt headless browser scraping (proved insufficient) | Applied |
 | 22 | Extend Java Island city list | Synthetic data uses city names, not just province names | Applied |
+| 23 | Use tokopaedi library for Tokopedia | Mobile API spoofing bypasses Akamai; actively maintained PyPI package | Applied ✓ |
+| 24 | Install Obscura v0.1.8 on VPS | Stealth headless browser — still blocked by Akamai JS challenge | Applied (failed) |
+| 25 | Install curl_cffi on VPS | TLS fingerprint impersonation — HTTP/2 stream killed by Akamai | Applied (failed) |
 
 #### Files Changed
 
@@ -417,11 +454,12 @@
 | Jun 20 | prompts/day1-prompts.md | Deleted (outdated, replaced by data-pipeline.md) | Kilo |
 | Jun 20 | prompts/day1-data-pipeline.md | Updated with VPS context | Kilo |
 | Jun 20 | AGENTS.md | Added VPS password security rule | Kilo |
-| Jun 20 | src/pipeline/scraper.py | Built: API scraper + synthetic data generator | Claude |
+| Jun 20 | src/pipeline/scraper.py | Built: tokopaedi mobile API scraper (real data) | Claude |
 | Jun 20 | src/pipeline/cleaner.py | Built: cleaning, normalization, spec parsing | Claude |
 | Jun 20 | src/pipeline/validator.py | Built: 7 data quality checks | Claude |
 | Jun 20 | src/pipeline/run_pipeline.py | Built: 5-step pipeline orchestrator | Claude |
-| Jun 20 | requirements.txt | Created: httpx, pandas, pytest | Claude |
+| Jun 20 | requirements.txt | Created: tokopaedi, httpx, pandas, pytest | Claude |
+| Jun 20 | SPEC.md | Updated: data sources, tech stack, pipeline steps | Claude |
 
 ---
 

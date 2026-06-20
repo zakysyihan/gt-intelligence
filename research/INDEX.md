@@ -18,7 +18,7 @@
 |---|------|-------|--------|--------------|
 | 1 | [dataset-selection.md](dataset-selection.md) | Kaggle dataset evaluation — recommend Brazilian E-Commerce (Olist) | Superseded | Jun 19 |
 | 2 | [ai-development-approaches.md](ai-development-approaches.md) | SDD vs alternatives for AI-assisted development — with community sources | Final | Jun 19 |
-| 3 | [marketplace-scraping.md](marketplace-scraping.md) | Indonesian marketplace scraping feasibility — Tokopedia primary | Final | Jun 19 |
+| 3 | [marketplace-scraping.md](marketplace-scraping.md) | Indonesian marketplace scraping — tokopaedi library works, Akamai bypass research | Final | Jun 20 |
 | 4 | [tech-stack-comparison.md](tech-stack-comparison.md) | Python libraries and tools comparison | Pending | — |
 | 5 | [architecture-decisions.md](architecture-decisions.md) | Architecture choices and trade-offs | Pending | — |
 | 6 | [llm-grounding-strategy.md](llm-grounding-strategy.md) | How to ground LLM in data, reduce hallucination | Pending | — |

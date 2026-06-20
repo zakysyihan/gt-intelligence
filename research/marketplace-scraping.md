@@ -1,15 +1,19 @@
 # Research: Indonesian Marketplace Scraping
 
 > **Topic:** Feasibility of scraping Indonesian e-commerce for trade demand data
-> **Date:** Jun 19, 2026
-> **Status:** Final
+> **Date:** Jun 19, 2026 (updated Jun 20, 2026)
+> **Status:** Final — Working solution found
 > **Context:** User has 6 months domain expertise in demand forecasting and pricing analysis
 
 ---
 
 ## Summary
 
-Scraping Indonesian marketplaces is feasible and demonstrates real data engineering. **Recommended: Tokopedia GraphQL API** as primary source, with **BPS (Statistics Indonesia)** as fallback. Domain expertise in demand forecasting is a strong advantage for "Problem framing & business understanding" (10% weight).
+Scraping Indonesian marketplaces is feasible but challenging due to Akamai Bot Manager protection on Tokopedia. **Working solution: `tokopaedi` Python library** (PyPI) which uses mobile API spoofing to bypass Akamai. Successfully scraped 672 real Tokopedia products from Java Island sellers.
+
+**What didn't work:** Direct GraphQL API, curl_cffi TLS impersonation, Playwright/Obscura headless browsers, Shopee API, Blibli API, Bukalapak.
+
+**What works:** `tokopaedi` library — mobile user-agent spoofing against Tokopedia's mobile API endpoints.
 
 ---
 
@@ -165,13 +169,57 @@ The LLM will answer questions by:
 
 ---
 
+## Exploration Results (Jun 20, 2026)
+
+### Approaches Tested
+
+| # | Approach | Tool/Library | Result | Why Failed |
+|---|----------|-------------|--------|------------|
+| 1 | Direct GraphQL API | httpx | 0 products | API returns empty results without browser cookies |
+| 2 | GraphQL + session cookies | httpx | 0 products | Same — cookies alone insufficient |
+| 3 | GraphQL + X-TKPD-AKAMAI header | httpx | Connection killed | Header triggers Akamai to kill HTTP/2 stream |
+| 4 | curl_cffi TLS impersonation | curl_cffi 0.15.0 | HTTP/2 stream error | All 11 impersonation modes (chrome, safari, edge) killed by Akamai |
+| 5 | Playwright headless browser | Playwright + Chromium | JS challenge blocks | Akamai serves challenge page, products never render |
+| 6 | Obscura stealth browser | Obscura v0.1.8 (Rust) | Same as Playwright | Akamai JS challenge still blocks product rendering |
+| 7 | Shopee API | httpx | 403 Forbidden | Shopee has DataDome anti-bot |
+| 8 | Blibli backend API | httpx | 403 Forbidden | Blibli has anti-bot protection |
+| 9 | Bukalapak | httpx | 404/406 | Endpoints deprecated or protected |
+| 10 | GraphQL introspection | httpx | Disabled | Tokopedia blocks introspection queries |
+| 11 | **tokopaedi library** | **tokopaedi 0.2.3** | **672 products ✓** | **Mobile API spoofing bypasses Akamai** |
+
+### Key Technical Discoveries
+
+1. **Akamai Bot Manager** protects Tokopedia with 4 layers:
+   - TLS/JA3 fingerprint checking (curl_cffi handles this)
+   - HTTP/2 SETTINGS frame checking (curl_cffi handles this)
+   - `_abck`/`bm_sz` cookie challenge (needs browser JS execution)
+   - Behavioral analysis (mouse movements, timing)
+
+2. **The `X-TKPD-AKAMAI: pdpGetLayout` header is a trap** — it triggers Akamai to kill the connection. The sgm-ecommerce-price-tracker repo that uses it was likely written before Tokopedia added this detection.
+
+3. **Tokopedia's GraphQL schema has changed** — `price`, `stats`, `category` fields cause "Invalid request schema" errors. Only `name`, `url`, `imageUrl`, `originalPrice`, `stock`, `condition`, `rating`, `shop{name city}` work.
+
+4. **Mobile API has lighter protection** — Tokopedia's mobile endpoints are less protected than desktop, which is why `tokopaedi` works.
+
+### Akamai Bypass Libraries Researched
+
+| Library | Type | Akamai Handling | Verdict |
+|---------|------|-----------------|---------|
+| curl_cffi | HTTP-only | TLS fingerprint only | Insufficient — needs sensor data |
+| wafer | Hybrid | Browser-based Akamai solver | Works but needs Patchright browser |
+| nodriver/zendriver | Full browser | Natural JS execution | Works but slow, resource-intensive |
+| hyper-sdk | Commercial API | Generates sensor data | Works but requires paid API key |
+| tokopaedi | HTTP (mobile spoofing) | Avoids heaviest Akamai | **Working ✓** |
+
+---
+
 ## Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Anti-bot blocking | High | Rate limiting, rotating user agents, delays |
+| Anti-bot blocking | **Medium** (mitigated) | tokopaidi library bypasses Akamai via mobile API |
+| tokopaedi library breaks | Medium | Library actively maintained; fallback to Kaggle dataset |
 | Data quality unknown | Medium | Data cleaning pipeline, validation checks |
-| Time overrun | High | 2-hour timebox, fallback to BPS data |
 | Legal concerns | Low | Public data, no PII, no login required |
 | Incomplete data | Medium | Document limitations in architecture doc |
 
@@ -179,17 +227,17 @@ The LLM will answer questions by:
 
 ## Decision
 
-**Use Tokopedia scraping as primary data source.** BPS as fallback. This demonstrates:
-- Data engineering skills (scraping pipeline)
+**Use `tokopaedi` library as primary data source.** This demonstrates:
+- Data engineering skills (scraping pipeline with anti-bot bypass)
 - Domain expertise (demand forecasting knowledge)
-- Pragmatism (using public data, no paid APIs)
-- Risk awareness (documenting limitations)
+- Pragmatism (finding a working solution after extensive exploration)
+- Risk awareness (documenting what didn't work and why)
 
-**Time allocation for Day 1:**
-- 1.5 hours: Tokopedia scraper development
-- 0.5 hours: Data collection (1000-5000 products)
-- 1 hour: Data cleaning and validation
-- 2 hours: SPEC.md and architecture
+**Results achieved:**
+- 672 real Tokopedia products from Java Island sellers
+- 3 subcategories: candy, chocolate, snacks
+- Avg price: Rp 44,743, Avg rating: 4.41
+- 374 unique shops across 10+ Java cities
 
 ---
 
