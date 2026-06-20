@@ -1,4 +1,5 @@
 tokopaedi>=0.2
 httpx>=0.27
 pandas>=2.2
+python-dotenv>=1.0
 pytest>=8.0

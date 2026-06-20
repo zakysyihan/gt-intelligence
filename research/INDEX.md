@@ -23,13 +23,14 @@
 | 5 | [architecture-decisions.md](architecture-decisions.md) | Architecture choices and trade-offs | Pending | — |
 | 6 | [llm-grounding-strategy.md](llm-grounding-strategy.md) | How to ground LLM in data, reduce hallucination | Pending | — |
 | 7 | [database-selection.md](database-selection.md) | SQLite vs PostgreSQL vs MariaDB — SQLite wins for MVP | Final | Jun 20 |
-| 8 | [analytics-layer-stack.md](analytics-layer-stack.md) | Vanna.ai recommended for text-to-SQL + charts + Streamlit | Final | Jun 20 |
+| 8 | [analytics-layer-stack.md](analytics-layer-stack.md) | WrenAI + Chainlit recommended over Vanna.ai + Streamlit | Final | Jun 20 |
+| 9 | [llm-selection.md](llm-selection.md) | SumoPod DeepSeek v4 Flash primary, GPT-4o-mini fallback | Final | Jun 20 |
 
 ---
 
 ## Pending Research (Not Yet Started)
 
-- ~~LLM API provider comparison~~ — Decided: OpenAI gpt-4o-mini (cost-effective, reliable)
-- ~~Streamlit vs alternatives~~ — Decided: Streamlit (fast to build, clean UI)
-- Dataset quality assessment — Will happen after scraping (Day 1)
-- Cost analysis for API calls during 5-day build — Minimal cost with gpt-4o-mini
+- ~~LLM API provider comparison~~ — Done: SumoPod DeepSeek primary, GPT-4o-mini fallback
+- ~~Streamlit vs alternatives~~ — Done: WrenAI + Chainlit
+- Dataset quality assessment — Done: 672 products validated
+- Cost analysis for API calls — ~$0 with SumoPod DeepSeek

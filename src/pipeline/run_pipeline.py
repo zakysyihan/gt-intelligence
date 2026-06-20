@@ -4,12 +4,14 @@ Runs the full ETL pipeline:
   1. Scrape Tokopedia → data/raw/
   2. Stage (backup) → data/staging/
   3. Clean → data/cleaned/products_clean.csv
-  4. Validate → pass/fail report
-  5. Curate → data/analytics/products.db (SQLite)
+  4. LLM Parse → enrich flavor/weight/variant via LLM
+  5. Validate → pass/fail report
+  6. Curate → data/analytics/products.db (SQLite)
 
 Usage:
-  python -m src.pipeline.run_pipeline          # full pipeline
+  python -m src.pipeline.run_pipeline              # full pipeline
   python -m src.pipeline.run_pipeline --skip-scrape  # skip scraping, use existing staging
+  python -m src.pipeline.run_pipeline --skip-llm     # skip LLM parsing (faster, less accurate)
 """
 
 import argparse
@@ -21,7 +23,7 @@ from pathlib import Path
 import pandas as pd
 
 
-def run_pipeline(skip_scrape: bool = False):
+def run_pipeline(skip_scrape: bool = False, skip_llm: bool = False):
     """Execute the full data pipeline."""
     # Resolve paths relative to project root
     project_root = Path(__file__).resolve().parent.parent.parent
@@ -39,14 +41,14 @@ def run_pipeline(skip_scrape: bool = False):
 
     # --- Step 1: Scrape ---
     if not skip_scrape:
-        print("\n[Step 1/5] Scraping Tokopedia...")
+        print("\n[Step 1/6] Scraping Tokopedia...")
         from src.pipeline.scraper import run_scraper
         run_scraper(raw_dir)
     else:
-        print("\n[Step 1/5] Scraping SKIPPED (--skip-scrape)")
+        print("\n[Step 1/6] Scraping SKIPPED (--skip-scrape)")
 
     # --- Step 2: Stage (backup raw → staging) ---
-    print("\n[Step 2/5] Staging raw data...")
+    print("\n[Step 2/6] Staging raw data...")
     staging_dir.mkdir(parents=True, exist_ok=True)
     raw_files = list(raw_dir.glob("*.json"))
     if raw_files:
@@ -57,23 +59,51 @@ def run_pipeline(skip_scrape: bool = False):
         print(f"  Staged {len(raw_files)} file(s)")
     else:
         print("  WARNING: No raw files to stage")
-        # Check if staging already has data (for --skip-scrape mode)
         staging_files = list(staging_dir.glob("*.json"))
         if staging_files:
             print(f"  Using {len(staging_files)} existing staging file(s)")
 
     # --- Step 3: Clean ---
-    print("\n[Step 3/5] Cleaning data...")
+    print("\n[Step 3/6] Cleaning data...")
     from src.pipeline.cleaner import clean_products
     df = clean_products(staging_dir, cleaned_csv)
 
-    # --- Step 4: Validate ---
-    print("\n[Step 4/5] Validating data quality...")
+    # --- Step 4: LLM Parse (enrich flavor/weight/variant) ---
+    if not skip_llm:
+        print("\n[Step 4/6] LLM parsing product specs...")
+        from src.pipeline.llm_parser import parse_products_with_llm
+        import csv
+
+        # Read CSV as list of dicts
+        with open(cleaned_csv, "r", encoding="utf-8") as f:
+            products = list(csv.DictReader(f))
+
+        # Parse with LLM
+        products = parse_products_with_llm(products)
+
+        # Write back
+        fieldnames = list(products[0].keys())
+        with open(cleaned_csv, "w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(products)
+
+        # Stats
+        total = len(products)
+        flavor_n = sum(1 for p in products if p.get("flavor"))
+        weight_n = sum(1 for p in products if p.get("weight"))
+        variant_n = sum(1 for p in products if p.get("variant"))
+        print(f"  Updated: flavor {flavor_n}/{total}, weight {weight_n}/{total}, variant {variant_n}/{total}")
+    else:
+        print("\n[Step 4/6] LLM parsing SKIPPED (--skip-llm)")
+
+    # --- Step 5: Validate ---
+    print("\n[Step 5/6] Validating data quality...")
     from src.pipeline.validator import validate
     results = validate(cleaned_csv)
 
-    # --- Step 5: Curate (write to SQLite) ---
-    print("\n[Step 5/5] Writing to SQLite...")
+    # --- Step 6: Curate (write to SQLite) ---
+    print("\n[Step 6/6] Writing to SQLite...")
     analytics_dir.mkdir(parents=True, exist_ok=True)
 
     if cleaned_csv.exists():
@@ -96,6 +126,11 @@ def run_pipeline(skip_scrape: bool = False):
         print(f"    Avg rating: {df['rating'].mean():.2f}")
         print(f"    Total sold (sum): {df['sold_count'].sum():,}")
         print(f"    Unique shops: {df['shop_name'].nunique()}")
+
+        # Derived field stats
+        for field in ["flavor", "weight", "variant"]:
+            filled = (df[field].notna() & (df[field] != "")).sum()
+            print(f"    {field}: {filled}/{row_count} ({100 * filled // row_count}%)")
 
         # Show subcategory breakdown
         print(f"\n  By subcategory:")
@@ -125,5 +160,10 @@ if __name__ == "__main__":
         action="store_true",
         help="Skip scraping step, use existing staging data",
     )
+    parser.add_argument(
+        "--skip-llm",
+        action="store_true",
+        help="Skip LLM parsing step (faster, less accurate specs)",
+    )
     args = parser.parse_args()
-    run_pipeline(skip_scrape=args.skip_scrape)
+    run_pipeline(skip_scrape=args.skip_scrape, skip_llm=args.skip_llm)
