@@ -110,6 +110,9 @@ When writing prompts for Claude Code:
 - NEVER read or display `.env` files
 - NEVER expose API keys in code or logs
 - Use environment variables for all secrets
+- NEVER know, handle, or request VPS passwords — use SSH key-based auth only
+- User sets up SSH keys manually, agents use key-based SSH commands only
+- If password auth is required, user handles it off-screen
 
 ## Data Safety
 
