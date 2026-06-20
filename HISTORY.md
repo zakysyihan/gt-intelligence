@@ -45,6 +45,7 @@
 | 29 | 6 quick actions mapped to analysis categories | Business team clicks, no code needed | Applied |
 | 30 | Tiered LLM: DeepSeek for parser + agent, fallback O3-Mini | Free on SumoPod, simple schema compensates | Applied |
 | 31 | Branch rules: every Claude session on feature branch | Prevents conflicts in parallel work | Applied |
+| 32 | **UI Rewrite: Chainlit → Streamlit** | Chainlit is chat-first; SPEC requires dashboard-first with AI on side. Streamlit supports tabs + multi-chat | Planned (Day 2) |
 
 #### Key Findings (Claude 3 LLM Research)
 
@@ -252,15 +253,15 @@
 - [x] Data pipeline built and verified (672 products)
 - [x] WrenAI + Chainlit interface built
 - [x] Deep LLM research completed
-- [ ] Analytics scripts (5 business questions) — needed
-- [ ] Dockerfile (docker-compose.yml exists, Dockerfile missing) — needed
-- [ ] mdl/ directory (MDL configuration) — needed
-- [ ] .env.example — needed
-- [ ] Integration testing (WrenAI + real data) — needed
-- [ ] Architecture doc (3-5 pages) — needed
-- [ ] README.md — needed
-- [ ] Presentation (5 slides) — needed
-- [ ] Demo video (7-10 min) — needed
+- [x] Dashboard + agent UI validated visually (Playwright screenshots)
+- [ ] **UI Rewrite: Chainlit → Streamlit** — tab-based (Dashboard | Analyst Agent), multi-chat sessions
+- [ ] Analytics scripts (5 business questions)
+- [ ] .env.example update (SumoPod DeepSeek)
+- [ ] Integration testing
+- [ ] Architecture doc (3-5 pages)
+- [ ] README.md
+- [ ] Presentation (5 slides)
+- [ ] Demo video (7-10 min)
 
 ---
 
