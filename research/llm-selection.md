@@ -1,54 +1,105 @@
-# Research: LLM Selection for WrenAI
+# Research: LLM Selection (Revised) — Two Use Cases
 
-> **Topic:** Which LLM to use for text-to-SQL + market intelligence
+> **Topic:** Which LLM for each use case in our system
 > **Date:** Jun 20, 2026
 > **Status:** Final
-> **Context:** User has SumoPod AI (DeepSeek v4 Flash). WrenAI supports OpenAI-compatible endpoints via LiteLLM.
+> **Context:** User identified two distinct LLM use cases requiring different model capabilities
 
 ---
 
 ## Summary
 
-**Use SumoPod AI (DeepSeek v4 Flash) as primary.** It's free for us, OpenAI-compatible, and benchmarks show DeepSeek generates adequate SQL at 10x lower cost than GPT-4. If quality is insufficient, fall back to GPT-4o-mini ($0.15/$0.60 per 1M tokens).
+Two use cases, two different LLM requirements. **Use a tiered approach** — SLM for the parser, frontier model for the agent.
 
 ---
 
-## LLM Options
+## Use Case 1: LLM Parser (Data Engineering)
 
-| Model | Input $/1M | Output $/1M | Text-to-SQL Quality | WrenAI Compatible | Cost for 672 products |
-|-------|-----------|-------------|---------------------|-------------------|----------------------|
-| **SumoPod DeepSeek v4 Flash** | Free (our platform) | Free | Adequate | ✅ (OpenAI-compatible) | $0 |
-| **GPT-4o-mini** | $0.15 | $0.60 | Good | ✅ (recommended) | ~$0.01 |
-| **DeepSeek V3.2** (direct API) | $0.28 | $0.42 | Good | ✅ (OpenAI-compatible) | ~$0.003 |
-| **GPT-4o** | $2.50 | $10.00 | Best | ✅ (recommended) | ~$0.02 |
-| **Claude Sonnet 4** | $3.00 | $15.00 | Best | ✅ (via LiteLLM) | ~$0.03 |
+**Task:** Extract flavor, weight, variant from 672 product titles. E.g., "Chitato Sapi Panggang 68g" → flavor: sapi panggang, weight: 68g
 
-## Key Findings
+**Requirements:**
+- Simple extraction (no reasoning, no tool calling)
+- Batch processing (672 products, not real-time)
+- Needs: good at Indonesian language + product naming conventions
+- Doesn't need: agentic capabilities, multi-step reasoning, chart generation
 
-1. **WrenAI recommends:** OpenAI o3-mini, GPT-4o, or GPT-4o-mini (docs.getwren.ai)
-2. **WrenAI uses LiteLLM:** Any OpenAI-compatible endpoint works (Ollama, DeepSeek, custom)
-3. **DeepSeek V4 generates adequate SQL** at 10x lower cost than GPT-4 (tokenmix.ai benchmark)
-4. **Text-to-SQL benchmark (llm-benchmark.tinybird.live):** 19 models tested on 200M rows — DeepSeek performed well for standard SQL generation
-5. **Our use case is simple:** Single table, ~1,000 rows, standard SQL (GROUP BY, ORDER BY, aggregate functions). No complex joins or subqueries needed.
+**Recommendation: SumoPod DeepSeek v4 Flash (free)**
+- Already configured, zero cost
+- Good at structured extraction tasks
+- Fast enough for batch processing
+- No need for frontier model here
 
-## Decision
+**Alternative if quality is poor:** Phi-4-mini (3.8B) — runs locally, 67.3% MMLU, strong at structured tasks. Could even run on VPS with 2GB RAM.
 
-**Primary: SumoPod DeepSeek v4 Flash** — free, already configured, good enough for our simple schema.
+---
 
-**Fallback: GPT-4o-mini** — if DeepSeek SQL quality is insufficient (bad syntax, wrong column names), switch to GPT-4o-mini. Still cheap ($0.01 for full demo).
+## Use Case 2: Market Intelligence Agent (WrenAI)
 
-**How to switch:** WrenAI config uses OpenAI-compatible endpoint. Change one env var:
-```
-LLM_MODEL=deepseek/deepseek-chat  →  LLM_MODEL=gpt-4o-mini
-LLM_API_BASE=https://sumopod/v1    →  LLM_API_BASE=https://api.openai.com/v1
-```
+**Task:** Natural language → SQL → results → insights → follow-up suggestions. User-facing, needs quality answers.
+
+**Requirements:**
+- Text-to-SQL (understands schema, generates correct SQL)
+- Agentic capabilities (tool calling, multi-step reasoning)
+- Business context understanding (via MDL)
+- Chart generation (text-to-chart)
+- Follow-up suggestions
+
+### 2026 LLM Landscape for Agentic SQL
+
+| Tier | Models | SQL Quality | Agentic | Price/1M | Notes |
+|------|--------|-------------|---------|----------|-------|
+| **Frontier** | GPT-5.4, Claude Opus 4.7 | ★★★★★ | ★★★★★ | $2.50-30 | Overkill for our simple schema |
+| **High** | DeepSeek V4 Pro, Qwen 3.6 Plus | ★★★★ | ★★★★ | $0.27-2.00 | Best value for agentic |
+| **Mid** | DeepSeek V4 Flash, Qwen3-Coder-Next | ★★★★ | ★★★ | $0.14-0.28 | Good enough for our use case |
+| **SLM** | Phi-4-mini (3.8B), Qwen3-4B, SmolLM3 (3B) | ★★★ | ★★ | Free (local) | Text-to-SQL: 56-67% accuracy |
+
+### Key Research Findings
+
+1. **SLM-SQL paper (arXiv 2025):** 0.5B model reached 56.87% execution accuracy, 1.5B reached 67.08% on BIRD benchmark. Impressive but not reliable enough for production.
+
+2. **Qwen3-4B rivals Qwen2.5-72B** through strong-to-weak distillation (2026 benchmark). A 4B model matching a 72B model is insane.
+
+3. **WrenAI recommends OpenAI models** but supports any OpenAI-compatible endpoint via LiteLLM.
+
+4. **DeepSeek V4 generates adequate SQL at 10x lower cost** than GPT-4 (tokenmix.ai).
+
+5. **Finetuned Qwen3-6B beats GPT-4o on Text-to-SQL** (YouTube demonstration, May 2025).
+
+---
+
+## Recommendation: Tiered LLM Strategy
+
+| Use Case | Model | Cost | Why |
+|----------|-------|------|-----|
+| **Parser** (batch, extraction) | SumoPod DeepSeek v4 Flash | Free | Simple task, no agentic needed |
+| **WrenAI Agent** (user-facing SQL) | SumoPod DeepSeek v4 Flash | Free | Try first, has agentic capabilities |
+| **WrenAI Agent** (fallback) | GPT-4o-mini | ~$0.01/demo | If DeepSeek SQL quality is insufficient |
+| **WrenAI Agent** (stretch) | DeepSeek V4 Pro | ~$0.003/demo | Best open-source agentic if budget allows |
+
+### Why this works:
+1. **Parser doesn't need a brain** — just pattern extraction. DeepSeek v4 Flash is overkill already.
+2. **Agent needs agentic capabilities** — DeepSeek V4 Flash has tool calling. Try it first.
+3. **WrenAI uses LiteLLM** — switching models is one env var change.
+4. **Cost is near-zero** regardless of choice — 672 products, simple SQL, minimal tokens.
+
+### What about SLMs for the agent?
+**Not recommended for MVP.** SLMs (Phi-4-mini, Qwen3-4B) achieve 56-67% SQL accuracy on benchmarks. Our simple schema might work, but:
+- WrenAI recommends OpenAI models specifically
+- SLMs need local hosting (Ollama) — adds complexity
+- No agentic capabilities at 3-4B scale
+- Time risk: debugging SLM integration eats into build time
+
+**Future consideration:** If we self-host on VPS with GPU, a finetuned Qwen3-6B could replace the API call entirely.
 
 ---
 
 ## Sources
 
-1. https://docs.getwren.ai/oss/ai_service/guide/custom_llm — WrenAI recommends OpenAI models
-2. https://tokenmix.ai/blog/best-llm-for-sql-generation — "DeepSeek V4 generates adequate SQL at 10x lower cost"
-3. https://www.tinybird.co/blog/which-llm-writes-the-best-sql — 19-model SQL benchmark
-4. https://benchlm.ai/blog/posts/llm-pricing-2026 — LLM pricing comparison 2026
-5. https://research.aimultiple.com/text-to-sql/ — Text-to-SQL LLM accuracy comparison
+1. https://arxiv.org/html/2507.22478v1 — SLM-SQL: 0.5B→56.87%, 1.5B→67.08% EX on BIRD
+2. https://docs.getwren.ai/oss/ai_service/guide/custom_llm — WrenAI recommends OpenAI, supports LiteLLM
+3. https://tokenmix.ai/blog/best-llm-for-sql-generation — DeepSeek V4: adequate SQL at 10x lower cost
+4. https://huggingface.co/blog/daya-shankar/open-source-llms — DeepSeek V4: frontier-level agentic
+5. https://www.bentoml.com/blog/the-best-open-source-small-language-models — Phi-4-mini (3.8B), Qwen3-4B, SmolLM3
+6. https://blog.premai.io/prem-1b-sql-fully-local-performant-slm-for-text-to-sql/ — Prem-1B-SQL: fine-tuned SLM for SQL
+7. https://www.datacamp.com/blog/top-small-language-models — Top 15 SLMs ranked
+8. https://benchlm.ai/blog/posts/llm-pricing-2026 — LLM pricing comparison 2026

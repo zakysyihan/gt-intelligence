@@ -24,7 +24,7 @@
 | 6 | [llm-grounding-strategy.md](llm-grounding-strategy.md) | How to ground LLM in data, reduce hallucination | Pending | — |
 | 7 | [database-selection.md](database-selection.md) | SQLite vs PostgreSQL vs MariaDB — SQLite wins for MVP | Final | Jun 20 |
 | 8 | [analytics-layer-stack.md](analytics-layer-stack.md) | WrenAI + Chainlit recommended over Vanna.ai + Streamlit | Final | Jun 20 |
-| 9 | [llm-selection.md](llm-selection.md) | SumoPod DeepSeek v4 Flash primary, GPT-4o-mini fallback | Final | Jun 20 |
+| 9 | [llm-selection.md](llm-selection.md) | Tiered LLM: DeepSeek v4 Flash for parser + agent, GPT-4o-mini fallback | Final | Jun 20 |
 
 ---
 
