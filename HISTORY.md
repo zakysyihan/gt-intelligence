@@ -213,7 +213,32 @@
 
 ---
 
-## Context from Previous Sessions
+## Session 3 — Sunday Jun 21, 2026 (Day 2)
+
+**Goal:** UI rewrite, analytics, architecture doc, prepare for submission
+**Active time:** 0 hours | **Calendar time:** 05:19 - ongoing
+**Deadline:** Mon Jun 22, 09:30 WIB | **Hours remaining:** ~18h (minus sleep)
+
+#### Timeline
+
+| Time | Activity | Actor |
+|------|----------|-------|
+| 05:19 | Session start, HISTORY.md read | Kilo |
+
+#### Open Items (from Session 2)
+
+| Priority | Task | Estimated Hours |
+|----------|------|----------------|
+| **P0** | UI Rewrite: Chainlit → Streamlit (tab-based, multi-chat) | 3-4h |
+| **P0** | Analytics scripts (5 business questions answered with data) | 1-2h |
+| **P1** | Architecture doc (3-5 pages, required) | 1-2h |
+| **P1** | Integration testing (end-to-end) | 1h |
+| **P1** | .env.example update (SumoPod DeepSeek) | 10 min |
+| **P2** | README.md | 30 min |
+| **P2** | Presentation (5 slides, required) | 1h |
+| **P3** | Demo video (7-10 min, required) | 1-2h |
+
+---
 
 ### Interview (Jun 11)
 - Online interview at 14:00 WIB
