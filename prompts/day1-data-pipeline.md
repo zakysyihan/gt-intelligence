@@ -1,6 +1,7 @@
 # Claude Code Prompt — Data Pipeline
 
 > Single prompt for Claude Code. Implements the full data pipeline per SPEC.md.
+> Runs on VPS: ubuntu@43.133.140.154 at /home/ubuntu/gt-intelligence/
 
 ---
 
@@ -9,7 +10,7 @@
 ```
 Read SPEC.md sections 3 and 4 for full context. Read research/marketplace-scraping.md for API details.
 
-Build the complete data pipeline for this project:
+Build the complete data pipeline for this project. ALL work happens on VPS.
 
 **SCOPE:** Food & beverage on Java Island only. Target ~1,000 products.
 **SUBCATEGORIES:** chocolate, candy, snacks, sweets

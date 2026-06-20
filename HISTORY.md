@@ -8,7 +8,7 @@
 ### Session 2 — Saturday Jun 20, 2026 (Day 1)
 
 **Goal:** Spec refinement — business questions, dataset scope, analysis categories
-**Active time:** ~0.5 hours (12:40 - 12:51)
+**Active time:** ~2.5 hours (12:40 - 15:20)
 
 #### Steps Completed
 
@@ -49,6 +49,35 @@
    - SQLite recommended for MVP (zero setup, file-based, 1000 rows)
    - PostgreSQL documented as production choice
 
+9. **GitHub Repo Created**
+   - Repo: https://github.com/zakysyihan/gt-intelligence (private)
+   - .gitignore excludes data/, .env, __pycache__
+   - Initial commit: 23 files
+
+10. **VPS Provisioned (SumoPod)**
+    - Host: 43.133.140.154
+    - User: ubuntu
+    - Specs: 2 vCPU, 2GB RAM, 40GB storage, Ubuntu 24.04
+    - Region: Jakarta
+    - SSH key: ~/.ssh/gt-intelligence (key-based auth, no passwords)
+    - Docker installed (v29.6.0)
+    - GitHub SSH key added to VPS (for git clone)
+    - Repo cloned at /home/ubuntu/gt-intelligence/
+
+11. **CLAUDE.md Updated**
+    - Added VPS connection details and deploy commands
+    - Updated tech stack to match SPEC.md
+    - Updated file structure
+
+12. **Security Rule Added**
+    - NEVER know, handle, or request VPS passwords
+    - SSH key-based auth only
+    - User handles password auth off-screen
+
+13. **Data Pipeline Prompt Updated**
+    - Single prompt covers full pipeline (scraper → staging → cleaning → validation → SQLite)
+    - Removed old multi-prompt file (day1-prompts.md)
+
 #### Decisions Made
 
 | # | Decision | Rationale | Status |
@@ -60,6 +89,9 @@
 | 13 | SQLite for MVP, PostgreSQL for production | MVP scope, 1000 rows, zero setup | Applied |
 | 14 | Dockerize all services on single VPS | Bonus point, simple deployment | Planned |
 | 15 | Explicit staging layer in pipeline | Data engineering best practice, re-runnable | Applied |
+| 16 | VPS: SumoPod Jakarta, 2vCPU/2GB/40GB | Close to data source, cheap, sufficient for MVP | Applied |
+| 17 | SSH key-based auth, no passwords | Security — agents never handle passwords | Applied |
+| 18 | Pipeline runs on VPS, not local | Don't mess up local laptop | Applied |
 
 ---
 
@@ -295,6 +327,11 @@
 | Jun 20 | SPEC.md | Added deployment acceptance criteria | Kilo |
 | Jun 20 | research/database-selection.md | Researched SQLite vs PostgreSQL vs MariaDB | Kilo |
 | Jun 20 | research/INDEX.md | Added database selection research | Kilo |
+| Jun 20 | CLAUDE.md | Updated with VPS info, tech stack, deploy commands | Kilo |
+| Jun 20 | CLAUDE.md | Removed old "tentative" language | Kilo |
+| Jun 20 | prompts/day1-prompts.md | Deleted (outdated, replaced by data-pipeline.md) | Kilo |
+| Jun 20 | prompts/day1-data-pipeline.md | Updated with VPS context | Kilo |
+| Jun 20 | AGENTS.md | Added VPS password security rule | Kilo |
 
 ---
 
