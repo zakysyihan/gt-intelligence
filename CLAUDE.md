@@ -56,6 +56,20 @@ This is NOT vibe coding. Every feature starts with a spec, not a prompt.
 - **Specs:** 2 vCPU, 2GB RAM, 40GB storage
 - **Docker:** v29.6.0
 
+### Working on VPS
+
+ALL code runs on VPS, not locally. To run commands on VPS:
+
+```bash
+ssh -i ~/.ssh/gt-intelligence ubuntu@43.133.140.154 "cd /home/ubuntu/gt-intelligence && <command>"
+```
+
+### First-Time VPS Setup
+
+```bash
+ssh -i ~/.ssh/gt-intelligence ubuntu@43.133.140.154 "cd /home/ubuntu/gt-intelligence && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt"
+```
+
 ### Deploy Commands
 
 ```bash
