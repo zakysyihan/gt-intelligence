@@ -364,3 +364,36 @@
 - Real map with GeoJSON boundaries (admin level 2)
 
 #### Merged to main
+
+---
+
+### Session 8 — June 22, 2026
+
+**Goal:** Quadrant analysis, filter improvements, dashboard polish
+
+#### Quadrant Hardcoded Thresholds
+Based on Indonesian F&B marketplace research:
+- **Demand:** 10 units/day (300/month) — moderate seller threshold
+- **Rating:** 4.5 — quality cutoff
+- **Price:** 50,000 IDR — mid-range price point
+
+Thresholds are **static/global** — not affected by filters. Crosshair positioned at chart center via log-scale axis ranges.
+
+**Note:** Dynamic thresholding (percentile-based or cluster-based splits) is for **production**, not MVP. See SPEC.md Section 7 for details.
+
+#### Filter Improvements
+- Province multiselect with cascading Kab/Kota multiselect
+- Both support multiple selection
+- Exact match (=) for city filter (prevents "Malang" matching "Kab. Malang")
+
+#### Data Quality Indicator
+- Shows warning when filtered products < 30 (Central Limit Theorem)
+- < 30: red "Data terlalu sedikit" | 30-49: orange "Data terbatas" | >= 50: no indicator
+
+#### Dashboard Polish
+- Removed green delta text from metric cards
+- Standardized labels: "Produk Terjual", "Rating", "Harga (IDR)"
+- Removed geographic map (not clean enough for MVP)
+- Product Spec Signals section removed
+- cliponaxis:false for bar chart labels
+- Auto-resize Plotly charts on filter/chat toggle

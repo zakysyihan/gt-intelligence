@@ -321,7 +321,21 @@ Every element queries live data from DuckDB on each load.
 - Google Trends chart (will use own scraped data for trends)
 - Province-level filter (needs kab/kota → province mapping verification)
 
-**Quadrant Centering:** Dynamic thresholds use median of both axes, placing the quadrant center at the data's midpoint. Products outside the visible range are capped at axis bounds.
+**Quadrant Thresholds (Hardcoded, Global):**
+
+Based on Indonesian F&B marketplace research:
+
+| Threshold | Value | Rationale |
+|-----------|-------|-----------|
+| Demand (daily) | 10 units/day (300/month) | Moderate seller — above = high demand |
+| Rating | 4.5 | Quality cutoff — above = good quality |
+| Price | 50,000 IDR | Mid-range price point |
+
+- X-axis: **Produk Terjual/Hari** (daily demand, log scale)
+- Crosshair lines at hardcoded thresholds, centered in chart via log-scale axis ranges
+- Static — not affected by filter selections (same thresholds for all views)
+
+**Production Note:** Dynamic thresholding (percentile-based or cluster-based splits) is planned for production. MVP uses hardcoded thresholds for simplicity and explainability.
 
 **Metric Naming Convention (Standardized):**
 - "Produk Terjual" (not "demand", "terjual", "sold_count", or "total terjual")
