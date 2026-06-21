@@ -301,23 +301,32 @@ The MDL encodes business logic so the LLM understands what data means:
 └──────────────────────────────────────────┴──────────────────┘
 ```
 
-### Dashboard (8 Widgets)
+### Dashboard (Final Design)
 
-The dashboard loads on open with 4 metric cards + 4 chart rows (8 widgets total).
+The dashboard loads on open with filters + 4 metric cards + demand distribution + 2 quadrants.
 Every element queries live data from DuckDB on each load.
 
 | # | Widget | What It Shows | Data Source |
 |---|--------|--------------|-------------|
-| 1 | Market Snapshot | Total products, top subcategory, total shops, total cities | `COUNT(*)`, `GROUP BY` |
-| 2 | Subcategory Comparison | Demand ranking by subcategory (bar chart) | `SUM(sold_count) GROUP BY subcategory` |
-| 3 | Price Sweet Spot | Price distribution histogram | `CASE WHEN price...` |
-| 4 | Top 10 Cities | Geographic distribution (horizontal bar) | `GROUP BY shop_location` |
-| 5 | Product Spec Signals | Top flavor/weight per subcategory (table) | `GROUP BY subcategory, flavor, weight` |
-| 6 | Trend Analysis | Google Trends interest over 12 months (line chart) | pytrends API (cached) |
-| 7 | Opportunity Quadrant | Demand vs Quality scatter (4 quadrants) | `sold_count vs rating` scatter |
-| 8 | Revenue Proxy | Price vs Demand scatter | `price vs sold_count` scatter |
+| — | Filters | Subcategory dropdown, Kota/Kabupaten dropdown (mapped to province) | Multi-select dropdowns |
+| 1 | Market Snapshot | Total Produk, Total Toko, Total Kota, Harga Diminati | `COUNT(*)`, `GROUP BY` |
+| 2 | Demand per Subkategori | Demand ranking by subcategory (bar chart) | `SUM(sold_count) GROUP BY subcategory` |
+| 3 | Distribusi Demand per Harga | Demand by price bucket (histogram) | `CASE WHEN price...` |
+| 4 | Customer Quality Quadrant | Produk Terjual (x, log) vs Rating (y) — dynamic thresholds | `sold_count vs rating` scatter |
+| 5 | Harga × Demand Quadrant | Produk Terjual (x, log) vs Harga (y) — dynamic thresholds | `sold_count vs price` scatter |
 
-**Opportunity Quadrant Interpretation (from brand owner / product creator perspective):**
+**Deferred post-MVP:**
+- Geographic scatter_mapbox (no suitable viz stack found in time)
+- Product Spec Signals table (data ready, visualization deferred)
+- Google Trends chart (will use own scraped data for trends)
+- Province-level filter (needs kab/kota → province mapping verification)
+
+**Quadrant Centering:** Dynamic thresholds use median of both axes, placing the quadrant center at the data's midpoint. Products outside the visible range are capped at axis bounds.
+
+**Metric Naming Convention (Standardized):**
+- "Produk Terjual" (not "demand", "terjual", "sold_count", or "total terjual")
+- "Rating" (not "quality", "Quality (rating)", or "rating score")
+- "Harga (IDR)" (not "Price", "price", or "Harga (IDR)")
 
 | Quadrant | Signal | Action |
 |----------|--------|--------|
