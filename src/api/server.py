@@ -267,7 +267,7 @@ async def get_quadrant_data(subcategories: str = None, province: str = None, cit
     ).fetchall()
     return {
         "products": [
-            {"name": r[0], "subcategory": r[1], "sold_count": r[2], "rating": r[3], "price": r[4]}
+            {"name": r[0], "subcategory": r[1], "sold_count": r[2], "daily_sold": round(r[2] / 30, 1), "rating": r[3], "price": r[4]}
             for r in rows
         ]
     }

@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — GT Intelligence
 
-> Architecture document (3-5 pages). Required deliverable per test case.
+> Technical architecture and design decisions for GT Intelligence.
 > Last updated: Jun 22, 2026
 
 ---

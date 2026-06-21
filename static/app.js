@@ -281,52 +281,64 @@ function median(arr) {
     return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
+// Hardcoded thresholds (global, static — not affected by filters)
+// Based on Indonesian F&B marketplace research:
+// - Demand: 10 units/day (300/month) = moderate seller threshold
+// - Rating: 4.5 = quality cutoff (above = good quality)
+// - Price: 50,000 IDR = mid-range price point
+const THRESHOLDS = {
+    demand_daily: 10,       // products/day (300/month)
+    rating: 4.5,            // quality cutoff
+    price: 50000,           // IDR mid-range
+};
+
 function renderQuadrantChart(products) {
     if (!products || !products.length) return;
+
+    // Use daily_sold for x-axis (demand per day)
     const subcats = [...new Set(products.map(p => p.subcategory))];
     const traces = subcats.map((sc, i) => {
         const pts = products.filter(p => p.subcategory === sc);
         return {
             type: 'scatter', mode: 'markers',
             name: sc,
-            x: pts.map(p => p.sold_count),
+            x: pts.map(p => p.daily_sold || p.sold_count / 30),
             y: pts.map(p => p.rating),
             text: pts.map(p => p.name.substring(0, 30)),
             marker: { size: 8, color: CHART_COLORS[i % CHART_COLORS.length], opacity: 0.7 },
         };
     });
 
-    // Dynamic thresholds — percentile-based, clamped to visual center
-    const soldCounts = products.map(p => p.sold_count).sort((a, b) => a - b);
-    const ratings = products.map(p => p.rating).sort((a, b) => a - b);
-    const medX = median(soldCounts);
-    const medY = median(ratings);
-    const minX = Math.max(1, soldCounts[0]);
-    const maxX = soldCounts[soldCounts.length - 1];
-    const logCenter = Math.sqrt(minX * maxX); // Geometric mean = visual center on log scale
-    const yCenter = 3.0; // Fixed center for rating (0-5 scale)
+    // Static thresholds
+    const demandThreshold = THRESHOLDS.demand_daily;
+    const ratingThreshold = THRESHOLDS.rating;
+
+    // Axis range: center the threshold in the chart
+    // Log scale: range = [threshold/10, threshold*100] → threshold at ~33% (visual center on log)
+    const xMin = demandThreshold / 10;
+    const xMax = demandThreshold * 100;
 
     const shapes = [
-        { type: 'line', x0: logCenter, x1: logCenter, y0: 0, y1: 5.5, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: minX * 0.3, x1: maxX * 3, y0: yCenter, y1: yCenter, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: demandThreshold, x1: demandThreshold, y0: 0, y1: 5.5, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: xMin, x1: xMax, y0: ratingThreshold, y1: ratingThreshold, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    // Labels centered in each quadrant
-    const xQ1 = Math.sqrt(minX * logCenter);
-    const xQ2 = Math.sqrt(logCenter * maxX);
-    const yLow = 1.5;
-    const yHigh = 4.5;
+    // Labels in center of each quadrant
+    const xLow = Math.sqrt(xMin * demandThreshold);
+    const xHigh = Math.sqrt(demandThreshold * xMax);
+    const yLow = ratingThreshold / 2;
+    const yHigh = ratingThreshold + (5.5 - ratingThreshold) / 2;
 
     const annotations = [
-        { x: xQ2, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 10, color: '#059669' } },
-        { x: xQ1, y: yHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 10, color: '#2563eb' } },
-        { x: xQ2, y: yLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 10, color: '#d97706' } },
-        { x: xQ1, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
+        { x: xHigh, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 10, color: '#059669' } },
+        { x: xLow, y: yHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 10, color: '#2563eb' } },
+        { x: xHigh, y: yLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 10, color: '#d97706' } },
+        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
     ];
 
     plotChart('chart-quadrant', traces, {
         ...CHART_LAYOUT,
-        xaxis: { title: 'Produk Terjual', type: 'log', gridcolor: '#e2e8f0' },
+        xaxis: { title: 'Produk Terjual/Hari', type: 'log', range: [Math.log10(xMin), Math.log10(xMax)], gridcolor: '#e2e8f0' },
         yaxis: { title: 'Rating', range: [0, 5.5], gridcolor: '#e2e8f0' },
         shapes, annotations,
         height: 300,
@@ -335,48 +347,51 @@ function renderQuadrantChart(products) {
 
 function renderDemandPriceQuadrant(products) {
     if (!products || !products.length) return;
+
     const subcats = [...new Set(products.map(p => p.subcategory))];
     const traces = subcats.map((sc, i) => {
         const pts = products.filter(p => p.subcategory === sc);
         return {
             type: 'scatter', mode: 'markers',
             name: sc,
-            x: pts.map(p => p.sold_count),
+            x: pts.map(p => p.daily_sold || p.sold_count / 30),
             y: pts.map(p => p.price),
             text: pts.map(p => p.name.substring(0, 25)),
             marker: { size: 8, color: CHART_COLORS[i % CHART_COLORS.length], opacity: 0.7 },
         };
     });
 
-    const sold = products.map(p => p.sold_count).sort((a, b) => a - b);
-    const prices = products.map(p => p.price).sort((a, b) => a - b);
-    const minX = Math.max(1, sold[0]);
-    const maxX = sold[sold.length - 1];
-    const logCenter = Math.sqrt(minX * maxX);
-    const yCenter = Math.sqrt(prices[0] * prices[prices.length - 1]); // Geometric center for price
-    const maxY = prices[prices.length - 1];
+    // Static thresholds
+    const demandThreshold = THRESHOLDS.demand_daily;
+    const priceThreshold = THRESHOLDS.price;
+
+    // Axis ranges
+    const xMin = demandThreshold / 10;
+    const xMax = demandThreshold * 100;
+    const yMin = priceThreshold / 10;
+    const yMax = priceThreshold * 20;
 
     const shapes = [
-        { type: 'line', x0: logCenter, x1: logCenter, y0: 0, y1: maxY * 1.1, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: minX * 0.3, x1: maxX * 3, y0: yCenter, y1: yCenter, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: demandThreshold, x1: demandThreshold, y0: yMin, y1: yMax, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: xMin, x1: xMax, y0: priceThreshold, y1: priceThreshold, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    const xQ1 = Math.sqrt(minX * logCenter);
-    const xQ2 = Math.sqrt(logCenter * maxX);
-    const yLow = Math.sqrt(prices[0] * yCenter);
-    const yHigh = Math.sqrt(yCenter * maxY);
+    const xLow = Math.sqrt(xMin * demandThreshold);
+    const xHigh = Math.sqrt(demandThreshold * xMax);
+    const yLow = Math.sqrt(yMin * priceThreshold);
+    const yHigh = Math.sqrt(priceThreshold * yMax);
 
     const annotations = [
-        { x: xQ2, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 10, color: '#059669' } },
-        { x: xQ1, y: yHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 10, color: '#2563eb' } },
-        { x: xQ2, y: yLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 10, color: '#d97706' } },
-        { x: xQ1, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
+        { x: xHigh, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 10, color: '#059669' } },
+        { x: xLow, y: yHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 10, color: '#2563eb' } },
+        { x: xHigh, y: yLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 10, color: '#d97706' } },
+        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
     ];
 
     plotChart('chart-distribution', traces, {
         ...CHART_LAYOUT,
-        xaxis: { title: 'Produk Terjual', type: 'log', gridcolor: '#e2e8f0' },
-        yaxis: { title: 'Harga (IDR)', gridcolor: '#e2e8f0' },
+        xaxis: { title: 'Produk Terjual/Hari', type: 'log', range: [Math.log10(xMin), Math.log10(xMax)], gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Harga (IDR)', type: 'log', range: [Math.log10(yMin), Math.log10(yMax)], gridcolor: '#e2e8f0' },
         shapes, annotations,
         height: 300,
     }, { responsive: true, displayModeBar: false });
