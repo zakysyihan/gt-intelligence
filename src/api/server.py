@@ -118,12 +118,15 @@ async def get_dashboard():
     agent = get_agent()
     dash = agent.get_dashboard_data()
     # Convert tuples to lists for JSON serialization
-    for key in ["subcategory_demand", "price_distribution", "geo_distribution"]:
+    for key in ["subcategory_demand", "price_demand", "geo_distribution"]:
         if key in dash and dash[key]:
             dash[key] = [list(r) for r in dash[key]]
     # Convert top_subcategory tuple
     if "top_subcategory" in dash and dash["top_subcategory"]:
         dash["top_subcategory"] = list(dash["top_subcategory"])
+    # Convert harga_diminati tuple
+    if "harga_diminati" in dash and dash["harga_diminati"]:
+        dash["harga_diminati"] = list(dash["harga_diminati"])
     return dash
 
 
@@ -141,6 +144,113 @@ async def get_quadrant_data():
             for r in rows
         ]
     }
+
+
+@app.get("/api/dashboard/quadrant-store")
+async def get_quadrant_store_data():
+    """Return per-product data for distribution quadrant (demand vs store_count).
+
+    Normalizes product names to identify the same product across sellers.
+    store_count = number of distinct sellers listing the same product.
+    """
+    agent = get_agent()
+    # Normalize product names: lowercase, remove seller-specific prefixes/suffixes,
+    # strip common markers like **, brackets, seller names
+    rows = agent.con.execute("""
+        SELECT
+            LOWER(TRIM(
+                REGEXP_REPLACE(
+                    REGEXP_REPLACE(
+                        REGEXP_REPLACE(product_name, '\\*\\*\\s*', ''),
+                        '\\s*\\[.*?\\]\\s*', ''
+                    ),
+                    '\\s+', ' '
+                )
+            )) as normalized_name,
+            subcategory,
+            SUM(sold_count) as total_sold,
+            COUNT(DISTINCT shop_name) as store_count,
+            AVG(rating) as avg_rating
+        FROM products
+        WHERE rating > 0
+        GROUP BY normalized_name, subcategory
+        HAVING store_count >= 1
+        ORDER BY total_sold DESC
+        LIMIT 200
+    """).fetchall()
+    return {
+        "products": [
+            {"name": r[0], "subcategory": r[1], "sold_count": r[2], "store_count": r[3], "rating": round(r[4], 2)}
+            for r in rows
+        ]
+    }
+
+
+@app.get("/api/dashboard/geo-map")
+async def get_geo_map():
+    """Return geo data with lat/lng for scatter_mapbox visualization."""
+    # Hardcoded lat/lng for Java Island cities
+    CITY_COORDS = {
+        "Surabaya": (-7.2575, 112.7521),
+        "Kab. Bandung": (-6.9175, 107.6191),
+        "Bandung": (-6.9175, 107.6191),
+        "Jakarta Barat": (-6.1681, 106.7589),
+        "Jakarta Utara": (-6.1219, 106.8748),
+        "Jakarta Selatan": (-6.2615, 106.8106),
+        "Jakarta Timur": (-6.2250, 106.9006),
+        "Jakarta Pusat": (-6.1862, 106.8341),
+        "Kab. Tangerang": (-6.1781, 106.6319),
+        "Tangerang": (-6.1781, 106.6319),
+        "Kab. Bekasi": (-6.2349, 106.9896),
+        "Bekasi": (-6.2349, 106.9896),
+        "Depok": (-6.4025, 106.7942),
+        "Bogor": (-6.5971, 106.8060),
+        "Malang": (-7.9666, 112.6326),
+        "Semarang": (-6.9666, 110.4196),
+        "Solo": (-7.5755, 110.8243),
+        "Yogyakarta": (-7.7956, 110.3695),
+        "Cirebon": (-6.7320, 108.5523),
+        "Tasikmalaya": (-7.3466, 108.2090),
+        "Purwokerto": (-7.4278, 109.2418),
+        "Kediri": (-7.8490, 112.0068),
+        "Madiun": (-7.5583, 111.5317),
+        "Jember": (-8.1845, 113.6965),
+        "Probolinggo": (-7.7543, 113.2159),
+        "Garut": (-7.2175, 107.9038),
+        "Sumedang": (-6.8361, 107.9225),
+        "Karawang": (-6.3203, 107.3139),
+        "Purwakarta": (-6.5569, 107.4431),
+        "Sukabumi": (-6.9175, 106.9271),
+        "Cianjur": (-6.8172, 107.1373),
+        "Magelang": (-7.4704, 110.2178),
+    }
+
+    agent = get_agent()
+    rows = agent.con.execute(
+        "SELECT shop_location, COUNT(*) as seller_count, SUM(sold_count) as total_sold "
+        "FROM products GROUP BY shop_location ORDER BY seller_count DESC"
+    ).fetchall()
+
+    points = []
+    for r in rows:
+        city = r[0]
+        if city in CITY_COORDS:
+            lat, lng = CITY_COORDS[city]
+            points.append({
+                "city": city, "lat": lat, "lng": lng,
+                "seller_count": r[1], "total_sold": r[2],
+            })
+        else:
+            # Try partial match for "Kab. X" vs "X"
+            for known_city, coords in CITY_COORDS.items():
+                if known_city in city or city in known_city:
+                    points.append({
+                        "city": city, "lat": coords[0], "lng": coords[1],
+                        "seller_count": r[1], "total_sold": r[2],
+                    })
+                    break
+
+    return {"points": points}
 
 
 @app.get("/api/dashboard/revenue")

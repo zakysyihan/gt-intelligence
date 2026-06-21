@@ -559,9 +559,22 @@ Question: {question}""",
             "SELECT subcategory, SUM(sold_count) as total FROM products GROUP BY subcategory ORDER BY total DESC LIMIT 1"
         ).fetchone()
 
-        dash["avg_price"] = self.con.execute(
-            "SELECT AVG(price) FROM products"
-        ).fetchone()[0]
+        # Harga Diminati: price bucket with highest total demand
+        dash["harga_diminati"] = self.con.execute(
+            """SELECT price_range, total_sold FROM (
+                SELECT
+                    CASE
+                        WHEN price < 5000 THEN '< 5K'
+                        WHEN price < 15000 THEN '5K-15K'
+                        WHEN price < 30000 THEN '15K-30K'
+                        WHEN price < 75000 THEN '30K-75K'
+                        WHEN price < 150000 THEN '75K-150K'
+                        ELSE '> 150K'
+                    END as price_range,
+                    SUM(sold_count) as total_sold
+                FROM products GROUP BY price_range
+            ) ORDER BY total_sold DESC LIMIT 1"""
+        ).fetchone()
 
         dash["total_shops"] = self.con.execute(
             "SELECT COUNT(DISTINCT shop_name) FROM products"
@@ -576,8 +589,8 @@ Question: {question}""",
             "SELECT subcategory, SUM(sold_count) as total_sold, COUNT(*) as product_count FROM products GROUP BY subcategory ORDER BY total_sold DESC"
         ).fetchall()
 
-        # Chart 2: Price distribution
-        dash["price_distribution"] = self.con.execute(
+        # Chart 2: Demand per price point (sold_count grouped by price bucket)
+        dash["price_demand"] = self.con.execute(
             """SELECT
                 CASE
                     WHEN price < 5000 THEN '< 5K'
@@ -587,13 +600,14 @@ Question: {question}""",
                     WHEN price < 150000 THEN '75K-150K'
                     ELSE '> 150K'
                 END as price_range,
-                COUNT(*) as count
+                SUM(sold_count) as total_demand,
+                COUNT(*) as product_count
             FROM products
             GROUP BY price_range
             ORDER BY MIN(price)"""
         ).fetchall()
 
-        # Chart 3: Geographic distribution (top 15 cities)
+        # Chart 3: Geographic distribution with lat/lng for map
         dash["geo_distribution"] = self.con.execute(
             "SELECT shop_location, COUNT(*) as seller_count, SUM(sold_count) as total_sold FROM products GROUP BY shop_location ORDER BY seller_count DESC LIMIT 15"
         ).fetchall()

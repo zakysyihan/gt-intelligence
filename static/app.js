@@ -25,23 +25,20 @@ async function loadDashboard() {
     const content = document.getElementById('dashboard-content');
 
     try {
-        const res = await fetch(`${API}/api/dashboard`);
-        const dash = await res.json();
-
-        renderMetrics(dash);
-        renderSubcategoryChart(dash.subcategory_demand);
-        renderPriceChart(dash.price_distribution);
-        renderGeoChart(dash.geo_distribution);
-
-        // Fetch per-product data for scatter charts
-        const [quadRes, revRes, specRes] = await Promise.all([
+        const [dashRes, quadRes, storeRes, geoRes, specRes] = await Promise.all([
+            fetch(`${API}/api/dashboard`).then(r => r.json()),
             fetch(`${API}/api/dashboard/quadrant`).then(r => r.json()),
-            fetch(`${API}/api/dashboard/revenue`).then(r => r.json()),
+            fetch(`${API}/api/dashboard/quadrant-store`).then(r => r.json()),
+            fetch(`${API}/api/dashboard/geo-map`).then(r => r.json()),
             fetch(`${API}/api/dashboard/specs`).then(r => r.json()),
         ]);
 
+        renderMetrics(dashRes);
+        renderSubcategoryChart(dashRes.subcategory_demand);
+        renderPriceDemandChart(dashRes.price_demand);
+        renderGeoMap(geoRes.points || []);
         renderQuadrantChart(quadRes.products || []);
-        renderRevenueChart(revRes.products || []);
+        renderDistributionQuadrant(storeRes.products || []);
         renderSpecsTable(specRes.specs || []);
 
         loading.style.display = 'none';
@@ -54,11 +51,12 @@ async function loadDashboard() {
 function renderMetrics(dash) {
     const grid = document.getElementById('metrics-grid');
     const topSub = dash.top_subcategory || ['', 0];
+    const harga = dash.harga_diminati || ['-', 0];
     const metrics = [
         { label: '📦 Total Produk', value: (dash.total_products || 0).toLocaleString() },
-        { label: '🏆 Subkategori Terlaris', value: topSub[0], delta: `${topSub[1].toLocaleString()} terjual` },
         { label: '🏪 Total Toko', value: (dash.total_shops || 0).toLocaleString() },
         { label: '📍 Total Kota', value: (dash.total_cities || 0).toLocaleString() },
+        { label: '💰 Harga Diminati', value: harga[0], delta: `${(harga[1] || 0).toLocaleString()} terjual` },
     ];
 
     grid.innerHTML = metrics.map(m => `
@@ -100,43 +98,71 @@ function renderSubcategoryChart(data) {
     }, { responsive: true, displayModeBar: false });
 }
 
-function renderPriceChart(data) {
+function renderPriceDemandChart(data) {
     if (!data || !data.length) return;
     const labels = data.map(r => r[0]);
-    const values = data.map(r => r[1]);
+    const demands = data.map(r => r[1]);
+    const counts = data.map(r => r[2]);
 
     Plotly.newPlot('chart-price', [{
-        type: 'bar', x: labels, y: values,
+        type: 'bar', x: labels, y: demands,
         marker: { color: '#2563eb' },
-        text: values,
+        text: demands.map(v => v.toLocaleString()),
         textposition: 'outside',
+        name: 'Total Demand',
     }], {
         ...CHART_LAYOUT,
-        yaxis: { title: 'Jumlah Produk', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Total Demand (terjual)', gridcolor: '#e2e8f0' },
         xaxis: { title: 'Rentang Harga (IDR)' },
+        showlegend: false,
+        height: 300,
+    }, { responsive: true, displayModeBar: false });
+}
+
+function renderGeoMap(points) {
+    if (!points || !points.length) return;
+
+    // Label top cities
+    const topCities = points.slice(0, 8).map(p => p.city);
+    const textVals = points.map(p =>
+        topCities.includes(p.city) ? p.city : ''
+    );
+
+    Plotly.newPlot('chart-geo', [{
+        type: 'scattermapbox',
+        mode: 'markers+text',
+        lat: points.map(p => p.lat),
+        lon: points.map(p => p.lng),
+        text: textVals,
+        textposition: 'top center',
+        textfont: { size: 10, color: '#1e293b' },
+        marker: {
+            size: points.map(p => Math.sqrt(p.seller_count) * 4),
+            color: points.map(p => p.seller_count),
+            colorscale: [[0, '#dbeafe'], [0.5, '#2563eb'], [1, '#1e3a8a']],
+            colorbar: { title: 'Penjual', thickness: 15, len: 0.5 },
+            opacity: 0.85,
+            sizemode: 'diameter',
+        },
+        customdata: points.map(p => [p.city, p.seller_count, p.total_sold]),
+        hovertemplate: '<b>%{customdata[0]}</b><br>Penjual: %{customdata[1]}<br>Terjual: %{customdata[2]}<extra></extra>',
+    }], {
+        ...CHART_LAYOUT,
+        mapbox: {
+            style: 'open-street-map',
+            center: { lat: -7.3, lon: 109.5 },
+            zoom: 6.5,
+        },
+        height: 400,
+        margin: { l: 0, r: 0, t: 0, b: 0 },
         showlegend: false,
     }, { responsive: true, displayModeBar: false });
 }
 
-function renderGeoChart(data) {
-    if (!data || !data.length) return;
-    const top10 = data.slice(0, 10);
-    const cities = top10.map(r => r[0]).reverse();
-    const counts = top10.map(r => r[1]).reverse();
-
-    Plotly.newPlot('chart-geo', [{
-        type: 'bar', y: cities, x: counts,
-        orientation: 'h',
-        marker: { color: '#059669' },
-        text: counts,
-        textposition: 'outside',
-    }], {
-        ...CHART_LAYOUT,
-        xaxis: { title: 'Jumlah Penjual', gridcolor: '#e2e8f0' },
-        yaxis: { automargin: true },
-        height: 350,
-        margin: { l: 130, r: 30, t: 10, b: 40 },
-    }, { responsive: true, displayModeBar: false });
+function median(arr) {
+    const s = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
 function renderQuadrantChart(products) {
@@ -154,31 +180,35 @@ function renderQuadrantChart(products) {
         };
     });
 
-    // Quadrant lines
-    const maxX = Math.max(...products.map(p => p.sold_count));
+    // Dynamic thresholds using median
+    const soldCounts = products.map(p => p.sold_count);
+    const ratings = products.map(p => p.rating);
+    const medX = median(soldCounts);
+    const medY = median(ratings);
+    const maxX = Math.max(...soldCounts);
+
     const shapes = [
-        { type: 'line', x0: maxX / 2, x1: maxX / 2, y0: 0, y1: 5, line: { color: '#e2e8f0', dash: 'dash', width: 1 } },
-        { type: 'line', x0: 0, x1: maxX, y0: 3.5, y1: 3.5, line: { color: '#e2e8f0', dash: 'dash', width: 1 } },
+        { type: 'line', x0: medX, x1: medX, y0: 0, y1: 5.5, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: 0, x1: maxX, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    // Quadrant labels
     const annotations = [
-        { x: maxX * 0.75, y: 4.5, text: '⭐ Winning Formula', showarrow: false, font: { size: 10, color: '#059669' } },
-        { x: maxX * 0.25, y: 4.5, text: '💎 Hidden Gem', showarrow: false, font: { size: 10, color: '#2563eb' } },
-        { x: maxX * 0.75, y: 1.5, text: '⚠️ Volume Only', showarrow: false, font: { size: 10, color: '#d97706' } },
-        { x: maxX * 0.25, y: 1.5, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
+        { x: medX + (maxX - medX) * 0.5, y: 5.2, text: '⭐ Winning Formula', showarrow: false, font: { size: 10, color: '#059669' } },
+        { x: medX * 0.5, y: 5.2, text: '💎 Hidden Gem', showarrow: false, font: { size: 10, color: '#2563eb' } },
+        { x: medX + (maxX - medX) * 0.5, y: 0.3, text: '⚠️ Volume Only', showarrow: false, font: { size: 10, color: '#d97706' } },
+        { x: medX * 0.5, y: 0.3, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
     ];
 
     Plotly.newPlot('chart-quadrant', traces, {
         ...CHART_LAYOUT,
         xaxis: { title: 'Demand (sold_count)', gridcolor: '#e2e8f0' },
-        yaxis: { title: 'Quality (rating)', range: [0, 5.2], gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Quality (rating)', range: [0, 5.5], gridcolor: '#e2e8f0' },
         shapes, annotations,
         height: 300,
     }, { responsive: true, displayModeBar: false });
 }
 
-function renderRevenueChart(products) {
+function renderDistributionQuadrant(products) {
     if (!products || !products.length) return;
     const subcats = [...new Set(products.map(p => p.subcategory))];
     const traces = subcats.map((sc, i) => {
@@ -186,17 +216,37 @@ function renderRevenueChart(products) {
         return {
             type: 'scatter', mode: 'markers',
             name: sc,
-            x: pts.map(p => p.price),
-            y: pts.map(p => p.sold_count),
-            text: pts.map(p => `${p.name.substring(0, 25)}\nRev: Rp ${(p.estimated_revenue / 1e6).toFixed(1)}M`),
+            x: pts.map(p => p.sold_count),
+            y: pts.map(p => p.store_count),
+            text: pts.map(p => p.name.substring(0, 25)),
             marker: { size: 8, color: CHART_COLORS[i % CHART_COLORS.length], opacity: 0.7 },
         };
     });
 
-    Plotly.newPlot('chart-revenue', traces, {
+    const soldCounts = products.map(p => p.sold_count);
+    const storeCounts = products.map(p => p.store_count);
+    const medX = median(soldCounts);
+    const medY = median(storeCounts);
+    const maxX = Math.max(...soldCounts);
+    const maxY = Math.max(...storeCounts);
+
+    const shapes = [
+        { type: 'line', x0: medX, x1: medX, y0: 0, y1: maxY * 1.1, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: 0, x1: maxX, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+    ];
+
+    const annotations = [
+        { x: medX + (maxX - medX) * 0.5, y: maxY * 1.05, text: '🌐 Mass Market', showarrow: false, font: { size: 10, color: '#059669' } },
+        { x: medX * 0.5, y: maxY * 1.05, text: '🎯 Niche Centralized', showarrow: false, font: { size: 10, color: '#2563eb' } },
+        { x: medX + (maxX - medX) * 0.5, y: 0.5, text: '⚠️ Wide but Weak', showarrow: false, font: { size: 10, color: '#d97706' } },
+        { x: medX * 0.5, y: 0.5, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
+    ];
+
+    Plotly.newPlot('chart-distribution', traces, {
         ...CHART_LAYOUT,
-        xaxis: { title: 'Harga (IDR)', gridcolor: '#e2e8f0' },
-        yaxis: { title: 'Terjual', gridcolor: '#e2e8f0' },
+        xaxis: { title: 'Demand (sold_count)', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Distribution (store_count)', gridcolor: '#e2e8f0' },
+        shapes, annotations,
         height: 300,
     }, { responsive: true, displayModeBar: false });
 }
