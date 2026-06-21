@@ -414,7 +414,7 @@ Every element queries live data from DuckDB on each load.
 | Scraping | Manual run, tokopaedi mobile API | Scheduled (cron/Airflow), proxy rotation |
 | Google Trends | pytrends (unofficial) | Official API or SerpAPI |
 | Authentication | None (single user) | Multi-user auth, RBAC |
-| Data pipeline | Batch (scrape → clean → serve) | Streaming (real-time updates) |
+| Data pipeline | Batch (scrape → clean → serve) | Streaming with dbt (lineage, version control, auto-docs) |
 | Deployment | Single VPS (43.133.140.154) | All services on one machine |
 | Testing | Python assert + pytest | Simple verification |
 
@@ -446,7 +446,7 @@ This section documents what's POC/MVP and what would change in production.
 | Scheduling | Manual | Cron job or cloud scheduler |
 | Monitoring | Logs only | Prometheus + Grafana |
 | Authentication | None (single user) | Multi-user auth, RBAC |
-| Data pipeline | Batch (scrape → clean → serve) | Streaming (real-time updates) |
+| Data pipeline | Batch (scrape → clean → serve) | Streaming with dbt (lineage, version control, auto-docs) |
 | Cost | ~$0 (local) | VPS + DB hosting + LLM API costs |
 
 **The test case explicitly asks:** "what's included in the POC/MVP" and "what's not production-ready". This table answers both.
@@ -576,16 +576,20 @@ gt-intelligence/
 5. **Product spec parsing:** Best-effort extraction from titles, not guaranteed accuracy
 6. **Seller location, not buyer:** Demand signals are from seller location, not actual buyer geography
 7. **Language:** Product names may be in Indonesian (mixed with English)
-8. **Scope:** Food & beverage on Java Island only — not generalizable to all product categories
+8. **Location normalization:** Seller city names inconsistent ("Jakarta Barat" vs "Kab. Bandung"). Province-level grouping implemented as workaround.
 
 ---
 
 ## 14. Future Improvements (If More Time)
 
-1. Scrape additional marketplaces (Bukalapak, Blibli)
-2. Add time-series analysis (scrape periodically for real trends)
-3. Add actual competitor analysis
-4. Add profit margin estimation (with cost data)
-5. Add demand forecasting model
+1. **Product name normalization** — Standardize product names to `{brand} {product} {flavor} {weight}` format. Current names are inconsistent: mixed languages, variable casing, no standard structure.
+2. **dbt for transformation layer** — Use dbt (data build tool) for lineage tracking, version-controlled transformations, and automated documentation. Standard in production data engineering.
+3. Scrape additional marketplaces (Shopee, Bukalapak) with residential proxy
+4. Time-series scraping (weekly/monthly for real trend data)
+5. Multi-table relational schema (products, shops, daily_sales) when data volume grows
+6. Profit margin estimation (with cost data input)
+7. Demand forecasting model
+8. Multi-language support (Indonesian/English)
+9. Fine-tuned SLM (Qwen3-6B) for SQL generation
 6. Expand to other product categories
 7. Multi-language support (Indonesian/English)
