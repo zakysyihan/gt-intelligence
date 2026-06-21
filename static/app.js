@@ -134,7 +134,7 @@ function renderMetrics(dash) {
         { label: '📦 Total Produk', value: (dash.total_products || 0).toLocaleString() },
         { label: '🏪 Total Toko', value: (dash.total_shops || 0).toLocaleString() },
         { label: '📍 Total Kota', value: (dash.total_cities || 0).toLocaleString() },
-        { label: '💰 Harga Diminati', value: harga[0] },
+        { label: '💰 Harga Terlaris', value: harga[0] },
     ];
 
     grid.innerHTML = metrics.map(m => `
@@ -196,7 +196,7 @@ function renderSubcategoryChart(data) {
         cliponaxis: false,
     }], {
         ...CHART_LAYOUT,
-        yaxis: { title: 'Total Terjual', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Produk Terjual', gridcolor: '#e2e8f0' },
         showlegend: false,
         margin: { l: 50, r: 30, t: 40, b: 40 },
     }, { responsive: true, displayModeBar: false });
@@ -217,7 +217,7 @@ function renderPriceDemandChart(data) {
         name: 'Total Demand',
     }], {
         ...CHART_LAYOUT,
-        yaxis: { title: 'Demand (terjual)', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Produk Terjual', gridcolor: '#e2e8f0' },
         xaxis: { title: 'Rentang Harga (IDR)' },
         showlegend: false,
         height: 300,
@@ -246,38 +246,38 @@ function renderQuadrantChart(products) {
         };
     });
 
-    // Dynamic thresholds using median
-    const soldCounts = products.map(p => p.sold_count);
-    const ratings = products.map(p => p.rating);
+    // Dynamic thresholds — percentile-based, clamped to visual center
+    const soldCounts = products.map(p => p.sold_count).sort((a, b) => a - b);
+    const ratings = products.map(p => p.rating).sort((a, b) => a - b);
     const medX = median(soldCounts);
     const medY = median(ratings);
-    const maxX = Math.max(...soldCounts);
-    const minX = Math.min(soldCounts.filter(v => v > 0));
-    const logPad = Math.pow(10, Math.floor(Math.log10(maxX)));
+    const minX = Math.max(1, soldCounts[0]);
+    const maxX = soldCounts[soldCounts.length - 1];
+    const logCenter = Math.sqrt(minX * maxX); // Geometric mean = visual center on log scale
+    const yCenter = 3.0; // Fixed center for rating (0-5 scale)
 
     const shapes = [
-        { type: 'line', x0: medX, x1: medX, y0: 0, y1: 5.5, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: minX * 0.5, x1: maxX * 2, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: logCenter, x1: logCenter, y0: 0, y1: 5.5, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: minX * 0.3, x1: maxX * 3, y0: yCenter, y1: yCenter, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    // Place labels at the center of each quadrant (log-scale aware)
-    const logMedX = Math.sqrt(minX * maxX);
-    const xMid1 = Math.sqrt(minX * medX);
-    const xMid2 = Math.sqrt(medX * maxX);
-    const yMidLow = medY / 2;
-    const yMidHigh = medY + (5.5 - medY) / 2;
+    // Labels centered in each quadrant
+    const xQ1 = Math.sqrt(minX * logCenter);
+    const xQ2 = Math.sqrt(logCenter * maxX);
+    const yLow = 1.5;
+    const yHigh = 4.5;
 
     const annotations = [
-        { x: xMid2, y: yMidHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 10, color: '#059669' } },
-        { x: xMid1, y: yMidHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 10, color: '#2563eb' } },
-        { x: xMid2, y: yMidLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 10, color: '#d97706' } },
-        { x: xMid1, y: yMidLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
+        { x: xQ2, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 10, color: '#059669' } },
+        { x: xQ1, y: yHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 10, color: '#2563eb' } },
+        { x: xQ2, y: yLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 10, color: '#d97706' } },
+        { x: xQ1, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
     ];
 
     plotChart('chart-quadrant', traces, {
         ...CHART_LAYOUT,
-        xaxis: { title: 'Demand (terjual)', type: 'log', gridcolor: '#e2e8f0' },
-        yaxis: { title: 'Quality (rating)', range: [0, 5.5], gridcolor: '#e2e8f0' },
+        xaxis: { title: 'Produk Terjual', type: 'log', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Rating', range: [0, 5.5], gridcolor: '#e2e8f0' },
         shapes, annotations,
         height: 300,
     }, { responsive: true, displayModeBar: false });
@@ -298,35 +298,35 @@ function renderDemandPriceQuadrant(products) {
         };
     });
 
-    const sold = products.map(p => p.sold_count);
-    const prices = products.map(p => p.price);
-    const medX = median(sold);
-    const medY = median(prices);
-    const maxX = Math.max(...sold);
-    const minX = Math.min(sold.filter(v => v > 0));
-    const maxY = Math.max(...prices);
+    const sold = products.map(p => p.sold_count).sort((a, b) => a - b);
+    const prices = products.map(p => p.price).sort((a, b) => a - b);
+    const minX = Math.max(1, sold[0]);
+    const maxX = sold[sold.length - 1];
+    const logCenter = Math.sqrt(minX * maxX);
+    const yCenter = Math.sqrt(prices[0] * prices[prices.length - 1]); // Geometric center for price
+    const maxY = prices[prices.length - 1];
 
     const shapes = [
-        { type: 'line', x0: medX, x1: medX, y0: 0, y1: maxY * 1.1, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: minX * 0.5, x1: maxX * 2, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: logCenter, x1: logCenter, y0: 0, y1: maxY * 1.1, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: minX * 0.3, x1: maxX * 3, y0: yCenter, y1: yCenter, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    const xMid1 = Math.sqrt(minX * medX);
-    const xMid2 = Math.sqrt(medX * maxX);
-    const yMidLow = medY / 2;
-    const yMidHigh = medY + (maxY - medY) / 2;
+    const xQ1 = Math.sqrt(minX * logCenter);
+    const xQ2 = Math.sqrt(logCenter * maxX);
+    const yLow = Math.sqrt(prices[0] * yCenter);
+    const yHigh = Math.sqrt(yCenter * maxY);
 
     const annotations = [
-        { x: xMid2, y: yMidHigh, text: '⭐ High Value', showarrow: false, font: { size: 10, color: '#059669' } },
-        { x: xMid1, y: yMidHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 10, color: '#2563eb' } },
-        { x: xMid2, y: yMidLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 10, color: '#d97706' } },
-        { x: xMid1, y: yMidLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
+        { x: xQ2, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 10, color: '#059669' } },
+        { x: xQ1, y: yHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 10, color: '#2563eb' } },
+        { x: xQ2, y: yLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 10, color: '#d97706' } },
+        { x: xQ1, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
     ];
 
     plotChart('chart-distribution', traces, {
         ...CHART_LAYOUT,
-        xaxis: { title: 'Demand (terjual)', type: 'log', gridcolor: '#e2e8f0' },
-        yaxis: { title: 'Price (IDR)', gridcolor: '#e2e8f0' },
+        xaxis: { title: 'Produk Terjual', type: 'log', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Harga (IDR)', gridcolor: '#e2e8f0' },
         shapes, annotations,
         height: 300,
     }, { responsive: true, displayModeBar: false });

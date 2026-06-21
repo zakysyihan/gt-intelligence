@@ -112,6 +112,19 @@ async def serve_index():
 # API routes
 # ---------------------------------------------------------------------------
 
+# Province → cities mapping for filter
+PROVINCE_CITIES = {
+    'DKI Jakarta': ['Jakarta Barat', 'Jakarta Utara', 'Jakarta Selatan', 'Jakarta Timur', 'Jakarta Pusat'],
+    'Banten': ['Tangerang', 'Kab. Tangerang', 'Serang'],
+    'Jawa Barat': ['Bandung', 'Kab. Bandung', 'Bekasi', 'Kab. Bekasi', 'Depok', 'Bogor',
+                   'Karawang', 'Purwakarta', 'Sumedang', 'Garut', 'Tasikmalaya', 'Cirebon',
+                   'Sukabumi', 'Cianjur'],
+    'Jawa Tengah': ['Semarang', 'Solo', 'Purwokerto', 'Magelang'],
+    'DI Yogyakarta': ['Yogyakarta'],
+    'Jawa Timur': ['Surabaya', 'Malang', 'Kediri', 'Madiun', 'Jember', 'Probolinggo', 'Blitar'],
+}
+
+
 def _build_filter_clause(subcategories: str = None, province: str = None) -> tuple[str, list]:
     """Build SQL WHERE clause from filter params. Returns (clause, params)."""
     conditions = []
@@ -123,9 +136,10 @@ def _build_filter_clause(subcategories: str = None, province: str = None) -> tup
             conditions.append(f"subcategory IN ({placeholders})")
             params.extend(cats)
     if province:
-        # Exact match — avoids "Malang" matching "Kab. Malang"
-        conditions.append("shop_location = ?")
-        params.append(province)
+        cities = PROVINCE_CITIES.get(province, [province])
+        placeholders = ",".join(["?" for _ in cities])
+        conditions.append(f"shop_location IN ({placeholders})")
+        params.extend(cities)
     if conditions:
         return "WHERE " + " AND ".join(conditions), params
     return "", params
@@ -138,9 +152,8 @@ async def get_filter_options():
     subcats = [r[0] for r in agent.con.execute(
         "SELECT DISTINCT subcategory FROM products ORDER BY subcategory"
     ).fetchall()]
-    provinces = [r[0] for r in agent.con.execute(
-        "SELECT DISTINCT shop_location FROM products ORDER BY shop_location"
-    ).fetchall()]
+    # Return province names (from PROVINCE_CITIES mapping)
+    provinces = sorted(PROVINCE_CITIES.keys())
     return {"subcategories": subcats, "provinces": provinces}
 
 
