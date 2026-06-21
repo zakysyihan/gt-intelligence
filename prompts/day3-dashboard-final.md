@@ -1,5 +1,11 @@
 Read SPEC.md Section 7, the app code on VPS, and the existing dashboard implementation. Update the analytics dashboard with these changes:
 
+**Filters (top of dashboard, below metric cards):**
+- Subcategory multiselect (chocolate, candy, snacks)
+- Location filter: Province dropdown (Jawa Barat, DKI Jakarta, Jawa Timur, etc.)
+- Price range slider
+- All charts and metrics update when filters change
+
 **Metric cards (top row, 4 cards):**
 - Total Produk, Total Toko, Total Kota (keep as-is)
 - Rename "Harga Rata-rata" to "Harga Diminati" — show the price range or price point with highest demand, not just average
