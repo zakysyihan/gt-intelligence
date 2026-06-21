@@ -148,8 +148,10 @@ function renderMetrics(dash) {
     const qualityEl = document.getElementById('data-quality');
     if (qualityEl && dash.data_quality_msg) {
         const color = dash.data_quality === 'insufficient' ? '#dc2626' : '#d97706';
+        const bg = dash.data_quality === 'insufficient' ? '#fef2f2' : '#fffbeb';
+        const border = dash.data_quality === 'insufficient' ? '#fecaca' : '#fde68a';
         const icon = dash.data_quality === 'insufficient' ? '⚠️' : '⚡'
-        qualityEl.innerHTML = `<div style="background:${color}15;border:1px solid ${color}40;border-radius:8px;padding:8px 14px;font-size:0.82rem;color:${color};display:flex;align-items:center;gap:8px;">${icon} ${dash.data_quality_msg}</div>`;
+        qualityEl.innerHTML = `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:10px 16px;font-size:0.85rem;color:${color};display:flex;align-items:center;gap:8px;font-weight:500;">${icon} ${dash.data_quality_msg}</div>`;
         qualityEl.style.display = 'block';
     } else if (qualityEl) {
         qualityEl.innerHTML = '';
