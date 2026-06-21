@@ -220,7 +220,7 @@ function renderGeoMap(points) {
     });
 
     // Muted teal color scale (matching reference)
-    const binColors = ['#e8f4f8', '#b8d8e0', '#8cbfc8', '#5da8b4', '#2d8f9e'];
+    const binColors = ['#dceef4', '#a8d5e2', '#76c0cf', '#4aabb8', '#2496a3'];
 
     // Create one trace per bin for legend
     const traces = bins.map((_, i) => {
@@ -233,10 +233,11 @@ function renderGeoMap(points) {
             lat: pts.map(p => p.lat),
             lon: pts.map(p => p.lng),
             marker: {
-                size: pts.map(p => Math.sqrt(p.seller_count / maxVal) * 50 + 20),
+                size: pts.map(p => Math.sqrt(p.seller_count / maxVal) * 25 + 10),
                 color: binColors[i],
                 opacity: 0.7,
                 sizemode: 'diameter',
+                line: { width: 0.5, color: 'rgba(0,0,0,0.1)' },
             },
             customdata: pts.map(p => [p.city, p.seller_count, p.total_sold]),
             hovertemplate: '<b>%{customdata[0]}</b><br>Penjual: %{customdata[1]}<br>Terjual: %{customdata[2]}<extra></extra>',
