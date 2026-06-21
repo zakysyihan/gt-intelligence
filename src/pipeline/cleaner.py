@@ -4,7 +4,7 @@ Reads raw JSON from staging, normalizes fields, parses product specs,
 and outputs a clean CSV ready for analytics.
 
 ponytail: Regex-heavy parsing is intentionally simple. A production system
-would use NLP/NER for product spec extraction — for MVP, regex covers ~70%
+would use NLP/NER for product spec extraction -- for MVP, regex covers ~70%
 of cases which is acceptable.
 """
 
@@ -15,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# Schema — all fields + computed columns
+# Schema -- all fields + computed columns
 # ---------------------------------------------------------------------------
 
 REQUIRED_FIELDS = [
@@ -40,11 +40,11 @@ REQUIRED_FIELDS = [
 
 
 # ---------------------------------------------------------------------------
-# City → Province mapping (official Indonesian admin divisions)
+# City -> Province mapping (official Indonesian admin divisions)
 # ---------------------------------------------------------------------------
-# Source: https://en.wikipedia.org/wiki/List_of_regencies_and_cities_of_Indonesia
-# "Kab." = Kabupaten (regency), "Kota" = city — they are different admin regions.
-# "Kab. Bandung" (regency) ≠ "Bandung" (city), even though both are in West Java.
+# Source: Wikipedia - List of regencies and cities of Indonesia
+# "Kab." = Kabupaten (regency), "Kota" = city -- different admin regions.
+# "Kab. Bandung" (regency) != "Bandung" (city), both in West Java.
 
 CITY_TO_PROVINCE = {
     # DKI Jakarta
@@ -192,7 +192,6 @@ def get_province(city: str) -> str:
     """
     if not city:
         return ""
-    # Try exact match first
     if city in CITY_TO_PROVINCE:
         return CITY_TO_PROVINCE[city]
     # Try without "Kab. " prefix for fuzzy match
@@ -208,7 +207,7 @@ def get_province(city: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Keyword → subcategory mapping
+# Keyword -> subcategory mapping
 # ---------------------------------------------------------------------------
 
 KEYWORD_TO_SUBCATEGORY = {
@@ -382,8 +381,7 @@ def clean_products(staging_dir: Path, output_path: Path) -> pd.DataFrame:
     df["review_count"] = pd.to_numeric(df["review_count"], errors="coerce").fillna(0).astype(int)
     df["shop_rating"] = pd.to_numeric(df["shop_rating"], errors="coerce").fillna(0.0)
 
-    # --- Location normalization ---
-    # No geo filter — keep all locations for analytics
+    # --- Location normalization (no geo filter -- keep all locations) ---
     df["shop_city"] = df["shop_location"].apply(normalize_city)
     df["shop_province"] = df["shop_city"].apply(get_province)
 
@@ -392,7 +390,7 @@ def clean_products(staging_dir: Path, output_path: Path) -> pd.DataFrame:
     print(f"Locations: {len(df)} total, {unmapped} unmapped to province")
     print(f"  Provinces: {dict(province_counts)}")
 
-    # --- Parse product specs ---
+    # --- Parse product specs (regex baseline, LLM enriches later) ---
     df["flavor"] = df["product_name"].apply(parse_flavor)
     df["weight"] = df["product_name"].apply(parse_weight)
     df["variant"] = df["product_name"].apply(parse_variant)

@@ -118,21 +118,21 @@ Every field maps to at least one analysis category above.
 |---|-------|------|-------------|---------|
 | 1 | timestamp | datetime | When data was collected (scrape time) | Cat 1, 2, 3, 4 |
 | 2 | shop_location | string | Original seller location from API (e.g., "Kab. Bandung") | Cat 3, 4 |
-| 2a | shop_city | string | Normalized city name (trim whitespace) | Cat 3, 4 |
-| 2b | shop_province | string | Province mapped from city (e.g., "Jawa Barat") | Cat 3, 4 |
-| 3 | product_name | string | Full product title (used to parse flavor/weight/variant) | Cat 1, 5 |
-| 3a | category | string | Tokopedia category (e.g., "Makanan & Minuman") | Cat 1, 5 |
-| 4 | subcategory | string | chocolate, candy, snacks, sweets | Cat 1, 2, 4, 5 |
-| 5 | price | int | Price in IDR (normalized) | Cat 2, 3, 5 |
-| 6 | rating | float | Average rating (1-5) | Cat 5 |
-| 7 | sold_count | int | Monthly sales (normalized) | Cat 1, 2, 3, 4, 5 |
-| 8 | review_count | int | Number of reviews | Cat 5 |
-| 9 | shop_name | string | Seller name | Cat 3, 5 |
-| 10 | shop_rating | float | Seller rating (set to 0 — not available from tokopaedi API) | Cat 3 |
-| 11 | product_url | string | Product link (for deduplication) | Dedup |
-| 12 | flavor | string | Parsed from product_name (e.g., "sapi panggang") | Cat 5 |
-| 13 | weight | string | Parsed from product_name (e.g., "68g") | Cat 5 |
-| 14 | variant | string | Parsed from product_name (e.g., "large", "pack") | Cat 5 |
+| 3 | shop_city | string | Normalized city name (trimmed whitespace) | Cat 3, 4 |
+| 4 | shop_province | string | Province mapped from city using official Indonesian admin data | Cat 3, 4 |
+| 5 | product_name | string | Full product title (used to parse flavor/weight/variant) | Cat 1, 5 |
+| 6 | category | string | Tokopedia category from API (e.g., "Makanan & Minuman") | Cat 1, 5 |
+| 7 | subcategory | string | chocolate, candy, snacks, sweets | Cat 1, 2, 4, 5 |
+| 8 | price | int | Price in IDR (normalized) | Cat 2, 3, 5 |
+| 9 | rating | float | Average rating (0-5, 0 = no reviews) | Cat 5 |
+| 10 | sold_count | int | Monthly sales (normalized) | Cat 1, 2, 3, 4, 5 |
+| 11 | review_count | int | Number of reviews | Cat 5 |
+| 12 | shop_name | string | Seller name | Cat 3, 5 |
+| 13 | shop_rating | float | Seller rating (set to 0 -- not available from tokopaedi API) | Cat 3 |
+| 14 | product_url | string | Product link (for deduplication) | Dedup |
+| 15 | flavor | string | Parsed from product_name via LLM (e.g., "sapi panggang") | Cat 5 |
+| 16 | weight | string | Parsed from product_name via LLM (e.g., "68g") | Cat 5 |
+| 17 | variant | string | Parsed from product_name via LLM (e.g., "large", "pack") | Cat 5 |
 
 **Field 12-14 are derived** — extracted from product_name during cleaning, not scraped directly.
 
@@ -165,9 +165,8 @@ Raw Data (API) → Staging Layer (JSON) → Transformation Layer → Curated Ana
 - Remove products with missing price or rating
 - Normalize price to numeric (remove "Rp" prefix, dots)
 - Convert sold_count to numeric ("1rb+" → 1000, "10rb+" → 10000)
-- **Parse product_name** → extract flavor, weight/netto, variant using LLM (DeepSeek v4 Flash)
-- **Normalize locations** → shop_city (trimmed), shop_province (mapped from city using official Indonesian admin data)
-- Carry category field from API response
+- **Parse product_name** → extract flavor, weight/netto, variant using regex + keyword matching
+- Filter to Java Island locations only
 - Add computed columns: price_bucket, rating_category
 
 ### Product Spec Parsing Rules
@@ -277,7 +276,7 @@ The MDL encodes business logic so the LLM understands what data means:
 ### User Flow
 
 ```
-1. User opens system → sees dashboard (overview → demand → geography → advanced analytics)
+1. User opens system → sees dashboard (8 widgets + metrics)
 2. Clicks "Buka Chat" to open analyst side panel
 3. Agent answers with multi-step reasoning, data, charts, insights
 4. Agent can ask clarifying questions mid-conversation
@@ -289,100 +288,43 @@ The MDL encodes business logic so the LLM understands what data means:
 
 ```
 ┌──────────────────────────────────────────┬──────────────────┐
-│  GT Intelligence — Market Analyst        │  [💬 Buka Chat]  │
+│  GT Intelligence — Market Analyst        │  [💬 Tutup Chat] │
 ├──────────────────────────────────────────┼──────────────────┤
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌────────┐  │  🤖 Analis Pasar │
-│  │ 📦   │ │ 🏆   │ │ 🏪   │ │ 💰     │  │  Sesi: [▼] [➕] │
-│  │672   │ │snack │ │374   │ │Harga   │  │                  │
-│  │Total │ │Top   │ │Toko  │ │Diminati│  │  ⚡ Quick Actions │
-│  │Produk│ │Sub.  │ │      │ │        │  │  [🏆] [📈] [💰]  │
-│  └──────┘ └──────┘ └──────┘ └────────┘  │  [🗺️] [📊] [🍫]  │
-│                                          │                  │
-│  ── Distribusi Demand ────────────────── │  💬 chat panel   │
-│  📊 Demand per Subkategori              │                  │
-│  📊 Demand per Harga (Price Point)      │                  │
-│                                          │                  │
-│  ── Distribusi Geografis ────────────── │                  │
-│  🗺️ Peta Distribusi (scatter_mapbox)    │                  │
-│     Kab/Kota level, bubble = seller ct   │                  │
-│                                          │                  │
-│  ── Analisis Lanjutan ───────────────── │                  │
-│  📈 Kualitas Produk  │ 📈 Tingkat       │                  │
-│  (demand vs rating)  │   Distribusi     │                  │
-│  Dynamic thresholds  │ (demand vs #store│                  │
-│  per product         │  per product)    │                  │
-│  🍫 Product Spec Signals (table)        │                  │
-│  📈 Google Trends (line chart)           │                  │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐       │  🤖 Analis Pasar │
+│  │ 📦  │ │ 🏆  │ │ 🏪  │ │ 📍  │       │  Sesi: [▼] [➕]  │
+│  │672  │ │snack│ │374  │ │32   │       │                  │
+│  └─────┘ └─────┘ └─────┘ └─────┘       │  ⚡ Quick Actions │
+│                                          │  [🏆] [📈] [💰]  │
+│  📊 Demand  │  💰 Harga                  │  [🗺️] [📊] [🍫]  │
+│  🗺️ Top 10 Kota                         │                  │
+│  📈 Quadrant │ 💵 Revenue │ 🍫 Specs     │  💬 chat history  │
 └──────────────────────────────────────────┴──────────────────┘
 ```
 
-### Dashboard (Organized in Sections)
+### Dashboard (8 Widgets)
 
-The dashboard loads on open. Sections flow top-to-bottom: overview → demand distribution → geography → advanced analytics.
+The dashboard loads on open with 4 metric cards + 4 chart rows (8 widgets total).
+Every element queries live data from DuckDB on each load.
 
-#### Section A: Market Overview (4 Metric Cards)
+| # | Widget | What It Shows | Data Source |
+|---|--------|--------------|-------------|
+| 1 | Market Snapshot | Total products, top subcategory, total shops, total cities | `COUNT(*)`, `GROUP BY` |
+| 2 | Subcategory Comparison | Demand ranking by subcategory (bar chart) | `SUM(sold_count) GROUP BY subcategory` |
+| 3 | Price Sweet Spot | Price distribution histogram | `CASE WHEN price...` |
+| 4 | Top 10 Cities | Geographic distribution (horizontal bar) | `GROUP BY shop_location` |
+| 5 | Product Spec Signals | Top flavor/weight per subcategory (table) | `GROUP BY subcategory, flavor, weight` |
+| 6 | Trend Analysis | Google Trends interest over 12 months (line chart) | pytrends API (cached) |
+| 7 | Opportunity Quadrant | Demand vs Quality scatter (4 quadrants) | `sold_count vs rating` scatter |
+| 8 | Revenue Proxy | Price vs Demand scatter | `price vs sold_count` scatter |
 
-| Card | What It Shows | Rename Notes |
-|------|--------------|-------------|
-| Total Produk | Total products tracked | — |
-| Subkategori Terlaris | Top subcategory by demand + sold count | — |
-| Total Toko | Total unique sellers | — |
-| Harga Diminati | Price point with highest demand (not avg price) | Renamed from "Harga Rata-rata" to show what price is actually in demand |
-
-#### Section B: Demand Distribution (2 Charts)
-
-| Widget | What It Shows | Data |
-|--------|--------------|------|
-| Demand per Subkategori | Bar chart: total sold_count per subcategory | `SUM(sold_count) GROUP BY subcategory` |
-| Distribusi Demand per Harga | Histogram: sold_count grouped by price buckets | Products bucketed by price, bar height = total demand |
-
-#### Section C: Geographic Distribution (1 Map)
-
-| Widget | What It Shows | Data |
-|--------|--------------|------|
-| Peta Distribusi | Plotly scatter_mapbox on OpenStreetMap tiles | Each bubble = one city, size = seller count, positioned by lat/lng |
-
-- Kab/kota level (32 locations)
-- City → coordinates hardcoded lookup table (~32 entries, no scraping)
-- No API token needed (OpenStreetMap tiles are free)
-
-#### Section D: Advanced Analytics (3 Widgets)
-
-**Quadrant 1: Kualitas Produk (Quality Quadrant)**
-
-X-axis: sold_count (demand) | Y-axis: rating (quality)
-Dynamic thresholds: median of sold_count + median of rating
+**Opportunity Quadrant Interpretation (from brand owner / product creator perspective):**
 
 | Quadrant | Signal | Action |
 |----------|--------|--------|
 | High Demand + High Quality | ⭐ Winning Formula | Study and replicate |
-| Low Demand + High Quality | 💎 Hidden Gem | Develop and promote |
+| Low Demand + High Quality | 💎 Hidden Gem (Opportunity) | Develop and promote |
 | High Demand + Low Quality | ⚠️ Volume Only | Improve quality |
 | Low Demand + Low Quality | ❌ Avoid | Don't enter |
-
-Data point = one product, colored by subcategory.
-
-**Quadrant 2: Tingkat Distribusi (Distribution Quadrant)**
-
-X-axis: sold_count (demand) | Y-axis: store_count (# sellers per normalized product name)
-Dynamic thresholds: median of sold_count + median of store_count
-
-| Quadrant | Signal | Action |
-|----------|--------|--------|
-| High Demand + High Distribution | Mass Market | Product everyone needs |
-| Low Demand + High Distribution | Niche Centralized | Saturated, avoid |
-| High Demand + Low Distribution | Wide but Weak | Underdistributed, opportunity |
-| Low Demand + Low Distribution | Avoid | — |
-
-store_count computed via product name normalization: lowercase → remove punctuation → standardize weights → group by normalized name → count unique shop_name per group.
-
-**Product Spec Signals (Table)**
-
-Top flavor/weight per subcategory with total demand. Shows what product specs sell best.
-
-**Google Trends (Line Chart)**
-
-Search interest over 12 months for "snack Indonesia", "cokelat Indonesia", "permen Indonesia". Validates demand signals from marketplace data.
 
 **Quick action buttons (map to analysis categories):**
 

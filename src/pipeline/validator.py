@@ -39,11 +39,6 @@ CRITICAL_NULL_FIELDS = ["price", "sold_count", "subcategory", "shop_location"]
 MIN_ROWS = 500
 
 
-# ---------------------------------------------------------------------------
-# Validation checks
-# ---------------------------------------------------------------------------
-
-
 def validate(csv_path: Path) -> dict:
     """Run all validation checks. Returns dict of check_name -> passed."""
     results = {}
@@ -65,9 +60,9 @@ def validate(csv_path: Path) -> dict:
     passed = len(missing) == 0
     results["schema"] = passed
     if passed:
-        print(f"PASS: Schema — all {len(REQUIRED_FIELDS)} fields present")
+        print(f"PASS: Schema -- all {len(REQUIRED_FIELDS)} fields present")
     else:
-        print(f"FAIL: Schema — missing fields: {missing}")
+        print(f"FAIL: Schema -- missing fields: {missing}")
 
     # 2. Type checks
     type_checks = {
@@ -84,17 +79,17 @@ def validate(csv_path: Path) -> dict:
         if expected_type == "int":
             try:
                 pd.to_numeric(df[field], errors="raise").astype(int)
-                print(f"PASS: Type — {field} is numeric (int)")
+                print(f"PASS: Type -- {field} is numeric (int)")
             except (ValueError, TypeError):
                 all_types_ok = False
-                print(f"FAIL: Type — {field} is not numeric")
+                print(f"FAIL: Type -- {field} is not numeric")
         elif expected_type == "float":
             try:
                 pd.to_numeric(df[field], errors="raise").astype(float)
-                print(f"PASS: Type — {field} is numeric (float)")
+                print(f"PASS: Type -- {field} is numeric (float)")
             except (ValueError, TypeError):
                 all_types_ok = False
-                print(f"FAIL: Type — {field} is not numeric")
+                print(f"FAIL: Type -- {field} is not numeric")
     results["types"] = all_types_ok
 
     # 3. Null checks
@@ -107,12 +102,12 @@ def validate(csv_path: Path) -> dict:
         if null_count > 0:
             null_issues.append(f"{field}: {null_count} nulls")
         else:
-            print(f"PASS: Nulls — {field} has 0 nulls")
+            print(f"PASS: Nulls -- {field} has 0 nulls")
     results["nulls"] = len(null_issues) == 0
     if null_issues:
-        print(f"FAIL: Nulls — issues: {null_issues}")
+        print(f"FAIL: Nulls -- issues: {null_issues}")
     else:
-        print("PASS: Nulls — all critical fields have 0 nulls")
+        print("PASS: Nulls -- all critical fields have 0 nulls")
 
     # 4. Range checks
     range_issues = []
@@ -122,7 +117,7 @@ def validate(csv_path: Path) -> dict:
         if bad_price > 0:
             range_issues.append(f"price: {bad_price} values <= 0")
         else:
-            print(f"PASS: Range — price > 0 for all rows")
+            print(f"PASS: Range -- price > 0 for all rows")
 
     if "rating" in df.columns:
         ratings = pd.to_numeric(df["rating"], errors="coerce")
@@ -130,7 +125,7 @@ def validate(csv_path: Path) -> dict:
         if bad_rating > 0:
             range_issues.append(f"rating: {bad_rating} values outside 0-5")
         else:
-            print(f"PASS: Range — rating 0-5 for all rows (0 = no reviews yet)")
+            print(f"PASS: Range -- rating 0-5 for all rows (0 = no reviews yet)")
 
     if "sold_count" in df.columns:
         sold = pd.to_numeric(df["sold_count"], errors="coerce")
@@ -138,58 +133,56 @@ def validate(csv_path: Path) -> dict:
         if bad_sold > 0:
             range_issues.append(f"sold_count: {bad_sold} values < 0")
         else:
-            print(f"PASS: Range — sold_count >= 0 for all rows")
+            print(f"PASS: Range -- sold_count >= 0 for all rows")
 
     results["ranges"] = len(range_issues) == 0
     if range_issues:
-        print(f"FAIL: Range — issues: {range_issues}")
+        print(f"FAIL: Range -- issues: {range_issues}")
     else:
-        print("PASS: Range — all values within expected ranges")
+        print("PASS: Range -- all values within expected ranges")
 
     # 5. Dedup check
     if "product_url" in df.columns:
         dupes = df["product_url"].duplicated().sum()
         results["dedup"] = dupes == 0
         if dupes == 0:
-            print(f"PASS: Dedup — 0 duplicate product_url")
+            print(f"PASS: Dedup -- 0 duplicate product_url")
         else:
-            print(f"FAIL: Dedup — {dupes} duplicate product_url values")
+            print(f"FAIL: Dedup -- {dupes} duplicate product_url values")
     else:
         results["dedup"] = False
-        print(f"FAIL: Dedup — product_url column not found")
+        print(f"FAIL: Dedup -- product_url column not found")
 
     # 6. Location completeness
     if "shop_province" in df.columns:
         unmapped = (df["shop_province"].isna() | (df["shop_province"] == "")).sum()
-        total = len(df)
-        results["location_completeness"] = unmapped == 0
+        results["location_completeness"] = True  # warning only
         if unmapped == 0:
-            print(f"PASS: Location — all {total} rows have shop_province")
+            print(f"PASS: Location -- all {total_rows} rows have shop_province")
         else:
-            print(f"WARN: Location — {unmapped}/{total} rows missing shop_province")
-            results["location_completeness"] = True  # Warning, not failure
+            print(f"WARN: Location -- {unmapped}/{total_rows} rows missing shop_province")
     else:
         results["location_completeness"] = False
-        print(f"FAIL: Location — shop_province column not found")
+        print(f"FAIL: Location -- shop_province column not found")
 
     # 7. Category field check
     if "category" in df.columns:
         cat_filled = (df["category"].notna() & (df["category"] != "")).sum()
         results["category"] = cat_filled > 0
         if cat_filled > 0:
-            print(f"PASS: Category — {cat_filled}/{total_rows} rows have category")
+            print(f"PASS: Category -- {cat_filled}/{total_rows} rows have category")
         else:
-            print(f"FAIL: Category — 0 rows have category")
+            print(f"FAIL: Category -- 0 rows have category")
     else:
         results["category"] = False
-        print(f"FAIL: Category — column not found")
+        print(f"FAIL: Category -- column not found")
 
     # 8. Row count check
     results["row_count"] = total_rows >= MIN_ROWS
     if total_rows >= MIN_ROWS:
-        print(f"PASS: Row count — {total_rows} >= {MIN_ROWS}")
+        print(f"PASS: Row count -- {total_rows} >= {MIN_ROWS}")
     else:
-        print(f"WARN: Row count — {total_rows} < {MIN_ROWS} (below minimum)")
+        print(f"WARN: Row count -- {total_rows} < {MIN_ROWS} (below minimum)")
 
     # Summary
     passed_count = sum(1 for v in results.values() if v)
@@ -198,7 +191,7 @@ def validate(csv_path: Path) -> dict:
     print(f"Summary: {passed_count}/{total_checks} checks passed")
 
     if all(results.values()):
-        print("RESULT: ALL CHECKS PASSED ✓")
+        print("RESULT: ALL CHECKS PASSED")
     elif results.get("row_count") is False and all(
         v for k, v in results.items() if k != "row_count"
     ):

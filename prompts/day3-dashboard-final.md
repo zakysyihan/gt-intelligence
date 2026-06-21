@@ -23,8 +23,8 @@ Read SPEC.md Section 7, the app code on VPS, and the existing dashboard implemen
   - Data point per product (each dot = one product, colored by subcategory)
 
 - Quadrant 2: Distribution Level — sold_count (x) vs store_count (y)
-  - "store_count" = number of sellers selling the same product (requires product name normalization)
-  - Simple normalization: lowercase, remove punctuation, standardize weights (68g, 100gr → 68g), group by normalized name, count unique shop_name per group
+  - "store_count" = number of sellers listing the same product
+  - You need to normalize product names to identify the same product across sellers — find the best approach yourself
   - Dynamic thresholds: median of sold_count for x-split, median of store_count for y-split
   - Labels: Mass Market (high demand + high distribution), Niche Centralized (low demand + high distribution), Wide but Weak (high demand + low distribution), Avoid (low demand + low distribution)
   - Data point per product
