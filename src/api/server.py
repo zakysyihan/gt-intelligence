@@ -123,9 +123,9 @@ def _build_filter_clause(subcategories: str = None, province: str = None) -> tup
             conditions.append(f"subcategory IN ({placeholders})")
             params.extend(cats)
     if province:
-        # Filter by shop_location containing the province name
-        conditions.append("shop_location LIKE ?")
-        params.append(f"%{province}%")
+        # Exact match — avoids "Malang" matching "Kab. Malang"
+        conditions.append("shop_location = ?")
+        params.append(province)
     if conditions:
         return "WHERE " + " AND ".join(conditions), params
     return "", params
@@ -194,6 +194,18 @@ async def get_dashboard(subcategories: str = None, province: str = None):
         "SELECT shop_location, COUNT(*), SUM(sold_count) FROM products " + where + " GROUP BY shop_location ORDER BY COUNT(*) DESC LIMIT 15"
     )]
 
+    # Data quality indicator (Central Limit Theorem: n >= 30 for statistical significance)
+    MIN_SAMPLE = 30
+    if total < MIN_SAMPLE:
+        quality = "insufficient"
+        quality_msg = f"Data terlalu sedikit ({total} produk) untuk analisis yang reliabel. Minimum: {MIN_SAMPLE} produk."
+    elif total < 50:
+        quality = "limited"
+        quality_msg = f"Data terbatas ({total} produk). Interpretasi dengan hati-hati."
+    else:
+        quality = "good"
+        quality_msg = ""
+
     return {
         "total_products": total,
         "top_subcategory": list(top_sub) if top_sub else ["-", 0],
@@ -203,6 +215,8 @@ async def get_dashboard(subcategories: str = None, province: str = None):
         "subcategory_demand": subcat_demand,
         "price_demand": price_demand,
         "geo_distribution": geo_dist,
+        "data_quality": quality,
+        "data_quality_msg": quality_msg,
     }
 
 

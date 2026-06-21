@@ -143,6 +143,18 @@ function renderMetrics(dash) {
             <div class="metric-value">${m.value}</div>
         </div>
     `).join('');
+
+    // Data quality indicator
+    const qualityEl = document.getElementById('data-quality');
+    if (qualityEl && dash.data_quality_msg) {
+        const color = dash.data_quality === 'insufficient' ? '#dc2626' : '#d97706';
+        const icon = dash.data_quality === 'insufficient' ? '⚠️' : '⚡'
+        qualityEl.innerHTML = `<div style="background:${color}15;border:1px solid ${color}40;border-radius:8px;padding:8px 14px;font-size:0.82rem;color:${color};display:flex;align-items:center;gap:8px;">${icon} ${dash.data_quality_msg}</div>`;
+        qualityEl.style.display = 'block';
+    } else if (qualityEl) {
+        qualityEl.innerHTML = '';
+        qualityEl.style.display = 'none';
+    }
 }
 
 // ---------------------------------------------------------------------------
