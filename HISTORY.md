@@ -250,20 +250,40 @@
 **Active time:** 0 hours | **Calendar time:** 05:19 - ongoing
 **Deadline:** Mon Jun 22, 09:30 WIB | **Hours remaining:** ~18h (minus sleep)
 
+### Session 4 — Sunday Jun 21, 2026 (Day 2 continued)
+
+**Goal:** Finalization — doc sync, data fixes, cleanup
+**Active time:** ~3 hours (16:32 - ongoing)
+
 #### Timeline
 
 | Time | Activity | Actor |
 |------|----------|-------|
-| 05:19 | Session start, HISTORY.md read | Kilo |
-| 06:00 - 07:15 | SPEC.md updated: dashboard-first, 8 widgets, Google Trends, quadrant, Streamlit+custom UI | Kilo |
-| 07:00 | Claude 2 started: Streamlit UI → FastAPI + HTML/CSS/JS custom UI | Claude 2 |
-| 07:00 | Claude 3 started: presentation outline (5 slides, Indonesian speaker notes) | Claude 3 |
-| 07:15 | CLAUDE.md updated: visual verification with Playwright | Kilo |
-| 07:30 | README.md written | Kilo |
-| 08:30 | .env.example updated (SumoPod DeepSeek, not OpenAI) | Kilo |
-| 08:30 | Demo video script written | Kilo |
-| 10:10 | Claude 2 done: custom UI (FastAPI + HTML/CSS/JS), ReAct loop, Google Trends, 8 widgets | Claude 2 |
-| 10:10 | Claude 3 done: presentation validated against code, claims corrected | Claude 3 |
+| 16:32 - 16:45 | Smoke test prep, git check, architecture/presentation review | Kilo |
+| 16:45 - 17:00 | .env.example corrected, finalization checklist created | Kilo |
+| 17:00 - 17:20 | All stale Streamlit refs fixed in docs | Kilo |
+| 17:20 - 17:30 | Branch cleanup, merged feat/streamlit-dashboard to main | Kilo |
+| 17:30 - 17:45 | Daily scrape cron job set up on VPS | Kilo (violated rule — should be Claude) |
+| 17:45 - 18:15 | Discussion: staging data, geo filter, category, location normalization, schema | Kilo + User |
+| 18:15 - 18:30 | SPEC.md updated: product name normalization, dbt, location normalization | Kilo |
+| 18:30 | AGENTS.md rules updated: rule 6 (Claude updates docs), rule 7 (always merge) | Kilo |
+| 18:30 | Claude 1 started: data pipeline fixes (remove geo filter, add category, location normalization) | Claude 1 |
+| 19:00 | Claude 1 follow-up prompt: update docs before merge | Kilo |
+| 19:56 | Claude 1 still running — pipeline reprocessing on VPS | Claude 1 |
+| 19:56 | User reviewing analytical layer | User |
+
+#### Decisions Made (Session 4)
+
+| # | Decision | Rationale | Status |
+|---|----------|-----------|--------|
+| 26 | Remove geo filter | Data is already Java (13 "non-Java" are actually East Java cities) | Applied |
+| 27 | Add category field to schema | tokopaedi returns it, needed for filtering even if single value | Applied |
+| 28 | Add shop_province field | Province-level analytics, proper Indonesian admin divisions | Applied |
+| 29 | Location normalization: Kab ≠ Kota | "Kab. Bandung" ≠ "Bandung" (kota) — different admin regions | Applied |
+| 30 | Product name normalization → production | Current names inconsistent, document for future | Applied |
+| 31 | dbt for production pipeline | Standard data engineering tool for lineage + versioning | Applied |
+| 32 | Every Claude updates docs before merge | Docs and code ship together | Applied |
+| 33 | Every branch merged before session end | No orphan branches | Applied |
 
 #### Open Items (from Session 2)
 

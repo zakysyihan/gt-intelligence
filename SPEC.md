@@ -117,8 +117,11 @@ Every field maps to at least one analysis category above.
 | # | Field | Type | Description | Maps To |
 |---|-------|------|-------------|---------|
 | 1 | timestamp | datetime | When data was collected (scrape time) | Cat 1, 2, 3, 4 |
-| 2 | shop_location | string | Seller city/province (Java Island only) | Cat 3, 4 |
+| 2 | shop_location | string | Original seller location from API (e.g., "Kab. Bandung") | Cat 3, 4 |
+| 2a | shop_city | string | Normalized city name (trim whitespace) | Cat 3, 4 |
+| 2b | shop_province | string | Province mapped from city (e.g., "Jawa Barat") | Cat 3, 4 |
 | 3 | product_name | string | Full product title (used to parse flavor/weight/variant) | Cat 1, 5 |
+| 3a | category | string | Tokopedia category (e.g., "Makanan & Minuman") | Cat 1, 5 |
 | 4 | subcategory | string | chocolate, candy, snacks, sweets | Cat 1, 2, 4, 5 |
 | 5 | price | int | Price in IDR (normalized) | Cat 2, 3, 5 |
 | 6 | rating | float | Average rating (1-5) | Cat 5 |
@@ -162,8 +165,9 @@ Raw Data (API) → Staging Layer (JSON) → Transformation Layer → Curated Ana
 - Remove products with missing price or rating
 - Normalize price to numeric (remove "Rp" prefix, dots)
 - Convert sold_count to numeric ("1rb+" → 1000, "10rb+" → 10000)
-- **Parse product_name** → extract flavor, weight/netto, variant using regex + keyword matching
-- Filter to Java Island locations only
+- **Parse product_name** → extract flavor, weight/netto, variant using LLM (DeepSeek v4 Flash)
+- **Normalize locations** → shop_city (trimmed), shop_province (mapped from city using official Indonesian admin data)
+- Carry category field from API response
 - Add computed columns: price_bucket, rating_category
 
 ### Product Spec Parsing Rules
