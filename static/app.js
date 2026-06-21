@@ -151,7 +151,11 @@ function renderMetrics(dash) {
         const bg = dash.data_quality === 'insufficient' ? '#fef2f2' : '#fffbeb';
         const border = dash.data_quality === 'insufficient' ? '#fecaca' : '#fde68a';
         const icon = dash.data_quality === 'insufficient' ? '⚠️' : '⚡'
-        qualityEl.innerHTML = `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:10px 16px;font-size:0.85rem;color:${color};display:flex;align-items:center;gap:8px;font-weight:500;">${icon} ${dash.data_quality_msg}</div>`;
+        qualityEl.innerHTML = `
+            <div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:12px 18px;font-size:0.85rem;color:${color};display:flex;align-items:center;gap:10px;font-weight:500;">
+                <span style="font-size:1.1rem;">${icon}</span>
+                <span>${dash.data_quality_msg}</span>
+            </div>`;
         qualityEl.style.display = 'block';
     } else if (qualityEl) {
         qualityEl.innerHTML = '';
@@ -213,7 +217,7 @@ function renderPriceDemandChart(data) {
         name: 'Total Demand',
     }], {
         ...CHART_LAYOUT,
-        yaxis: { title: 'Total Demand (terjual)', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Demand (terjual)', gridcolor: '#e2e8f0' },
         xaxis: { title: 'Rentang Harga (IDR)' },
         showlegend: false,
         height: 300,
@@ -248,16 +252,18 @@ function renderQuadrantChart(products) {
     const medX = median(soldCounts);
     const medY = median(ratings);
     const maxX = Math.max(...soldCounts);
-    const padX = maxX * 0.05;
+    const minX = Math.min(soldCounts.filter(v => v > 0));
+    const logPad = Math.pow(10, Math.floor(Math.log10(maxX)));
 
     const shapes = [
         { type: 'line', x0: medX, x1: medX, y0: 0, y1: 5.5, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: 0, x1: maxX + padX, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: minX * 0.5, x1: maxX * 2, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    // Place labels at the center of each quadrant
-    const xMid1 = medX / 2;
-    const xMid2 = medX + (maxX - medX) / 2;
+    // Place labels at the center of each quadrant (log-scale aware)
+    const logMedX = Math.sqrt(minX * maxX);
+    const xMid1 = Math.sqrt(minX * medX);
+    const xMid2 = Math.sqrt(medX * maxX);
     const yMidLow = medY / 2;
     const yMidHigh = medY + (5.5 - medY) / 2;
 
@@ -270,7 +276,7 @@ function renderQuadrantChart(products) {
 
     plotChart('chart-quadrant', traces, {
         ...CHART_LAYOUT,
-        xaxis: { title: 'Demand (sold_count)', gridcolor: '#e2e8f0' },
+        xaxis: { title: 'Demand (terjual)', type: 'log', gridcolor: '#e2e8f0' },
         yaxis: { title: 'Quality (rating)', range: [0, 5.5], gridcolor: '#e2e8f0' },
         shapes, annotations,
         height: 300,
@@ -285,28 +291,28 @@ function renderDemandPriceQuadrant(products) {
         return {
             type: 'scatter', mode: 'markers',
             name: sc,
-            x: pts.map(p => p.price),
-            y: pts.map(p => p.sold_count),
+            x: pts.map(p => p.sold_count),
+            y: pts.map(p => p.price),
             text: pts.map(p => p.name.substring(0, 25)),
             marker: { size: 8, color: CHART_COLORS[i % CHART_COLORS.length], opacity: 0.7 },
         };
     });
 
-    const prices = products.map(p => p.price);
     const sold = products.map(p => p.sold_count);
-    const medX = median(prices);
-    const medY = median(sold);
-    const maxX = Math.max(...prices);
-    const maxY = Math.max(...sold);
-    const padX = maxX * 0.05;
+    const prices = products.map(p => p.price);
+    const medX = median(sold);
+    const medY = median(prices);
+    const maxX = Math.max(...sold);
+    const minX = Math.min(sold.filter(v => v > 0));
+    const maxY = Math.max(...prices);
 
     const shapes = [
-        { type: 'line', x0: medX, x1: medX, y0: 0, y1: maxY * 1.05, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: 0, x1: maxX + padX, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: medX, x1: medX, y0: 0, y1: maxY * 1.1, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: minX * 0.5, x1: maxX * 2, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    const xMid1 = medX / 2;
-    const xMid2 = medX + (maxX - medX) / 2;
+    const xMid1 = Math.sqrt(minX * medX);
+    const xMid2 = Math.sqrt(medX * maxX);
     const yMidLow = medY / 2;
     const yMidHigh = medY + (maxY - medY) / 2;
 
@@ -319,8 +325,8 @@ function renderDemandPriceQuadrant(products) {
 
     plotChart('chart-distribution', traces, {
         ...CHART_LAYOUT,
-        xaxis: { title: 'Harga (IDR)', gridcolor: '#e2e8f0' },
-        yaxis: { title: 'Demand (terjual)', gridcolor: '#e2e8f0' },
+        xaxis: { title: 'Demand (terjual)', type: 'log', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Price (IDR)', gridcolor: '#e2e8f0' },
         shapes, annotations,
         height: 300,
     }, { responsive: true, displayModeBar: false });
