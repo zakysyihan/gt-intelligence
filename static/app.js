@@ -200,66 +200,71 @@ function renderPriceDemandChart(data) {
 function renderGeoMap(points) {
     if (!points || !points.length) return;
 
-    // Create a single scattermapbox trace with binned colors (choropleth-like)
-    // Use large, semi-transparent circles that overlap to fill regions
-    const vals = points.map(p => p.seller_count);
-    const maxVal = Math.max(...vals);
-
-    // Bin values into 5 levels (like the reference)
-    const bins = [0.1, 0.25, 0.5, 0.75, 1.0];
-    const binLabels = bins.map((b, i) => {
-        const lo = Math.ceil(maxVal * (i === 0 ? 0 : bins[i - 1]));
-        const hi = Math.floor(maxVal * b);
-        return i === 4 ? `${lo.toLocaleString()} +` : `${lo.toLocaleString()} - ${hi.toLocaleString()}`;
+    // Use densitymapbox for smooth heat-density visualization
+    // Weight each point by seller_count for density intensity
+    const weighted = [];
+    points.forEach(p => {
+        // Repeat points by weight for density effect
+        const count = Math.max(1, Math.round(p.seller_count / 20));
+        for (let i = 0; i < count; i++) {
+            weighted.push(p);
+        }
     });
 
-    // Assign each point to a bin
-    const binIdx = points.map(p => {
-        const ratio = p.seller_count / maxVal;
-        return bins.findIndex(b => ratio <= b);
-    });
+    // Add slight jitter to prevent exact overlap
+    const jitter = () => (Math.random() - 0.5) * 0.03;
 
-    // Muted teal color scale (matching reference)
-    const binColors = ['#dceef4', '#a8d5e2', '#76c0cf', '#4aabb8', '#2496a3'];
+    const topPoints = points.slice(0, 8);
 
-    // Create one trace per bin for legend
-    const traces = bins.map((_, i) => {
-        const pts = points.map((p, j) => binIdx[j] === i ? p : null).filter(Boolean);
-        if (!pts.length) return null;
-        return {
+    Plotly.newPlot('chart-geo', [
+        // Density layer
+        {
+            type: 'densitymapbox',
+            lat: weighted.map(p => p.lat + jitter()),
+            lon: weighted.map(p => p.lng + jitter()),
+            z: weighted.map(p => p.seller_count),
+            colorscale: [
+                [0, 'rgba(220,238,244,0)'],
+                [0.2, 'rgba(168,213,226,0.6)'],
+                [0.4, 'rgba(118,192,207,0.7)'],
+                [0.6, 'rgba(74,171,184,0.8)'],
+                [0.8, 'rgba(36,150,163,0.85)'],
+                [1, 'rgba(20,120,130,0.9)'],
+            ],
+            radius: 25,
+            showscale: true,
+            colorbar: {
+                title: { text: 'Penjual', font: { size: 11 } },
+                thickness: 12,
+                len: 0.6,
+                tickfont: { size: 10 },
+            },
+            hoverinfo: 'skip',
+        },
+        // City labels
+        {
+            type: 'scattermapbox',
+            mode: 'text',
+            lat: topPoints.map(p => p.lat),
+            lon: topPoints.map(p => p.lng),
+            text: topPoints.map(p => p.city),
+            textfont: { size: 10, color: '#1e293b', family: 'Inter, sans-serif' },
+            textposition: 'top center',
+            showlegend: false,
+            hoverinfo: 'skip',
+        },
+        // Scatter dots for hover info
+        {
             type: 'scattermapbox',
             mode: 'markers',
-            name: binLabels[i],
-            lat: pts.map(p => p.lat),
-            lon: pts.map(p => p.lng),
-            marker: {
-                size: pts.map(p => Math.sqrt(p.seller_count / maxVal) * 25 + 10),
-                color: binColors[i],
-                opacity: 0.7,
-                sizemode: 'diameter',
-                line: { width: 0.5, color: 'rgba(0,0,0,0.1)' },
-            },
-            customdata: pts.map(p => [p.city, p.seller_count, p.total_sold]),
+            lat: points.map(p => p.lat),
+            lon: points.map(p => p.lng),
+            marker: { size: 1, opacity: 0 },
+            customdata: points.map(p => [p.city, p.seller_count, p.total_sold]),
             hovertemplate: '<b>%{customdata[0]}</b><br>Penjual: %{customdata[1]}<br>Terjual: %{customdata[2]}<extra></extra>',
-            showlegend: true,
-        };
-    }).filter(Boolean);
-
-    // Add city labels as a separate trace
-    const topPoints = points.slice(0, 6);
-    traces.push({
-        type: 'scattermapbox',
-        mode: 'text',
-        lat: topPoints.map(p => p.lat),
-        lon: topPoints.map(p => p.lng),
-        text: topPoints.map(p => p.city),
-        textfont: { size: 10, color: '#1e293b', family: 'Inter, sans-serif' },
-        textposition: 'top center',
-        showlegend: false,
-        hoverinfo: 'skip',
-    });
-
-    Plotly.newPlot('chart-geo', traces, {
+            showlegend: false,
+        },
+    ], {
         ...CHART_LAYOUT,
         mapbox: {
             style: 'open-street-map',
@@ -268,14 +273,7 @@ function renderGeoMap(points) {
         },
         height: 400,
         margin: { l: 0, r: 0, t: 0, b: 0 },
-        legend: {
-            title: { text: 'Jumlah Penjual', font: { size: 11 } },
-            font: { size: 10 },
-            x: 0, y: 0,
-            bgcolor: 'rgba(255,255,255,0.85)',
-            bordercolor: '#e2e8f0',
-            borderwidth: 1,
-        },
+        showlegend: false,
     }, { responsive: true, displayModeBar: false });
 }
 
