@@ -25,12 +25,11 @@ async function loadDashboard() {
     const content = document.getElementById('dashboard-content');
 
     try {
-        const [dashRes, quadRes, storeRes, geoRes, specRes] = await Promise.all([
+        const [dashRes, quadRes, storeRes, geoRes] = await Promise.all([
             fetch(`${API}/api/dashboard`).then(r => r.json()),
             fetch(`${API}/api/dashboard/quadrant`).then(r => r.json()),
             fetch(`${API}/api/dashboard/quadrant-store`).then(r => r.json()),
             fetch(`${API}/api/dashboard/geo-map`).then(r => r.json()),
-            fetch(`${API}/api/dashboard/specs`).then(r => r.json()),
         ]);
 
         renderMetrics(dashRes);
@@ -39,7 +38,6 @@ async function loadDashboard() {
         renderGeoMap(geoRes.points || []);
         renderQuadrantChart(quadRes.products || []);
         renderDistributionQuadrant(storeRes.products || []);
-        renderSpecsTable(specRes.specs || []);
 
         loading.style.display = 'none';
         content.style.display = 'block';
@@ -249,34 +247,6 @@ function renderDistributionQuadrant(products) {
         shapes, annotations,
         height: 300,
     }, { responsive: true, displayModeBar: false });
-}
-
-function renderSpecsTable(specs) {
-    const container = document.getElementById('chart-specs');
-    if (!container || !specs || !specs.length) return;
-
-    const grouped = {};
-    specs.forEach(s => {
-        if (!grouped[s.subcategory]) grouped[s.subcategory] = [];
-        grouped[s.subcategory].push(s);
-    });
-
-    const subcats = Object.keys(grouped);
-    const cols = subcats.length <= 2 ? subcats.length : Math.min(3, subcats.length);
-
-    let html = `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:16px;">`;
-    for (const subcat of subcats) {
-        const items = grouped[subcat];
-        html += '<div>';
-        html += `<div style="font-weight:700;margin-bottom:8px;color:#1e293b;font-size:0.9rem;">${subcat.toUpperCase()}</div>`;
-        html += '<table class="data-table"><thead><tr><th>Rasa</th><th>Berat</th><th>Terjual</th><th>#</th></tr></thead><tbody>';
-        items.slice(0, 5).forEach(s => {
-            html += `<tr><td>${escapeHtml(s.flavor)}</td><td>${escapeHtml(s.weight || '-')}</td><td>${s.total_sold.toLocaleString()}</td><td>${s.count}</td></tr>`;
-        });
-        html += '</tbody></table></div>';
-    }
-    html += '</div>';
-    container.innerHTML = html;
 }
 
 // ---------------------------------------------------------------------------
