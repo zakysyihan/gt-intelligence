@@ -224,6 +224,15 @@
 | Time | Activity | Actor |
 |------|----------|-------|
 | 05:19 | Session start, HISTORY.md read | Kilo |
+| 06:00 - 07:15 | SPEC.md updated: dashboard-first, 8 widgets, Google Trends, quadrant, Streamlit+custom UI | Kilo |
+| 07:00 | Claude 2 started: Streamlit UI → FastAPI + HTML/CSS/JS custom UI | Claude 2 |
+| 07:00 | Claude 3 started: presentation outline (5 slides, Indonesian speaker notes) | Claude 3 |
+| 07:15 | CLAUDE.md updated: visual verification with Playwright | Kilo |
+| 07:30 | README.md written | Kilo |
+| 08:30 | .env.example updated (SumoPod DeepSeek, not OpenAI) | Kilo |
+| 08:30 | Demo video script written | Kilo |
+| 10:10 | Claude 2 done: custom UI (FastAPI + HTML/CSS/JS), ReAct loop, Google Trends, 8 widgets | Claude 2 |
+| 10:10 | Claude 3 done: presentation validated against code, claims corrected | Claude 3 |
 
 #### Open Items (from Session 2)
 
@@ -255,3 +264,30 @@
 - Teaching experience (Hacktiv8, Binus Center)
 - Solo dev products (Halaqah AI, Latent Signal)
 - Azure AI Engineer Associate certified
+
+---
+
+### Session 6 — Saturday Jun 20, 2026 (Day 2 evening)
+
+**Goal:** Redesign UI from Chainlit (chat-first) to Streamlit (dashboard-first)
+**Branch:** feat/streamlit-dashboard
+
+#### What Changed
+- Rewrote `src/app/app.py` from Chainlit to Streamlit
+- Dashboard-first layout: main area = metrics + charts + filters, sidebar = analyst chat
+- Multiple chat sessions with create/switch
+- Expandable charts in chat responses
+- Custom CSS for polished metric cards and chat styling
+- Updated Dockerfile (chainlit → streamlit)
+- Created `.streamlit/config.toml` (theme, server config)
+- Removed dead `wrenai>=0.10.0` dependency
+
+#### What Stayed Same
+- `src/llm/agent.py` — GTAgent class (UI-agnostic)
+- `src/llm/data_loader.py` — SQLite → DuckDB loader
+- `src/app/charts.py` — Plotly go.Figure charts
+- All business logic and prompts
+
+#### Deployed
+- Feature branch: feat/streamlit-dashboard
+- VPS: http://43.133.140.154:8000

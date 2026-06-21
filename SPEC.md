@@ -57,20 +57,15 @@ The business team needs to answer 5 categories of analysis. Each category maps t
 | 3.3 | Which cities are underserved (high demand signals, few sellers)? | shop_location, sold_count |
 | 3.4 | Does pricing vary significantly by region? | price, shop_location, subcategory |
 
-### Category 4: Temporal Pattern & Trends
+### Category 4: Temporal Pattern
 
-> "How does demand change over time? What's rising, what's declining?"
+> "How does demand change over time?"
 
-| # | Business Question | What We Need | Source |
-|---|-------------------|-------------|--------|
-| 4.1 | Which subcategories are trending up/down? | search interest over 12 months | **Google Trends API** |
-| 4.2 | Are there seasonal signals? | monthly search patterns | **Google Trends API** |
-| 4.3 | Which subcategory is rising fastest? | month-over-month change | **Google Trends API** |
-| 4.4 | How do sold counts compare across subcategories? | sold_count by subcategory | Tokopedia data |
-
-**Data source note:** Our marketplace data is scraped at ONE point in time (Jun 20, 2026). We cannot show real sales trends from Tokopedia data alone. Google Trends provides search interest trends (past 12 months) as a proxy for demand trajectory. This is a limitation — search interest ≠ actual sales — but it's the best trend signal available without periodic re-scraping.
-
-**Limitation:** Google Trends shows search interest, not actual purchase data. Correlation with real sales is approximate. A production system would scrape periodically (weekly/monthly) to build actual sales trend data.
+| # | Business Question | What We Need |
+|---|-------------------|-------------|
+| 4.1 | How do weekly sales patterns change? | sold_count, timestamp |
+| 4.2 | Are there seasonal signals in the collection period? | sold_count, timestamp, subcategory |
+| 4.3 | Which products gained or lost traction fastest? | sold_count, timestamp, product_name |
 
 ### Category 5: Product Success Signals (Product Development)
 
@@ -78,52 +73,10 @@ The business team needs to answer 5 categories of analysis. Each category maps t
 
 | # | Business Question | What We Need |
 |---|-------------------|-------------|
-| 5.1 | What product attributes correlate with high sales? | price, rating, sold_count, subcategory |
+| 5.1 | What product attributes correlate with high sales? | price, rating, review_count, sold_count, subcategory |
 | 5.2 | Which underserved niches have demand but low seller count? | subcategory, sold_count, shop_name |
 | 5.3 | What flavor/weight/variant sells best per subcategory? | parsed from product_name (flavor, weight, variant) |
 | 5.4 | What's the optimal product spec to enter a winning subcategory? | all fields above |
-| 5.5 | **Quadrant: Demand vs Quality** — where is the opportunity? | sold_count, rating |
-
-### Quadrant Analysis: Demand vs Quality (Category 5.5)
-
-The quadrant maps each product on two axes:
-- **X-axis:** Rating (customer satisfaction, 0-5)
-- **Y-axis:** Sold count (demand volume)
-
-```
-                    HIGH DEMAND
-                        │
-     QUALITY GAP        │         WINNING FORMULA
-     (people buy it     │     (people buy it AND
-      but unhappy)      │      love it)
-     → OPPORTUNITY:     │     → STUDY: what specs
-       make better      │       do they share?
-       product here     │
-  ──────────────────────┼──────────────────────
-                        │
-     FAILING            │         HIDDEN GEM
-     (nobody buys,      │     (nobody buys but
-      nobody likes)     │      those who do love it)
-     → AVOID            │     → NICHE: loyal
-                        │       customers, scale?
-                    LOW DEMAND
-     ◄── LOW RATING      HIGH RATING ──►
-```
-
-**Interpretation for brand owner / product creator:**
-- **Quality Gap (high demand, low rating):** Customers buy this product but aren't satisfied. Opportunity to develop a better version of a product that already has proven demand.
-- **Winning Formula (high demand, high rating):** Study the best-selling, highest-rated products. What flavors, weights, price points do they share? Replicate the formula.
-- **Hidden Gem (low demand, high rating):** Small market but strong product with loyal customers. Can we scale distribution?
-- **Failing (low demand, low rating):** Avoid — no demand, no satisfaction.
-
-**Limitation — what would make this quadrant stronger:**
-This quadrant uses `rating` (average score) and `sold_count` (demand volume) as proxies. A richer analysis would incorporate:
-- **Review text quality** — Are reviews detailed and passionate (indicating genuine engagement) or just "ok" one-liners?
-- **Review sentiment** — Positive vs negative review ratio
-- **Repeat purchase signals** — Are the same buyers coming back?
-- **Review-to-sold ratio** — Higher ratio = more engaged customer base (niche with passionate buyers vs mass market commodity)
-
-These metrics are not available from Tokopedia's search API (review_count = 0 for all products). A production version would scrape individual product pages for review data, or use Tokopedia's seller API for deeper engagement metrics.
 
 **Note on Category 5:** Flavor, weight, and variant data are parsed from product titles (e.g., "Chitato Sapi Panggang 68g" → flavor: sapi panggang, weight: 68g). Extraction accuracy is a known limitation — not all titles contain structured specs.
 
@@ -320,127 +273,108 @@ The MDL encodes business logic so the LLM understands what data means:
 ### User Flow
 
 ```
-1. User opens system → sees dashboard (full width, metrics + charts + filters)
-2. Dashboard has filters: subcategory, location, price range
-3. User clicks chat icon → side panel slides open (25% width)
-4. User creates new analysis or revisits previous session
-5. Agent answers with SQL, data table, chart (clickable to expand), insight, follow-ups
-6. User can minimize chat → dashboard returns to full width
+1. User opens system → sees dashboard (8 widgets + metrics)
+2. Clicks "Buka Chat" to open analyst side panel
+3. Agent answers with multi-step reasoning, data, charts, insights
+4. Agent can ask clarifying questions mid-conversation
+5. User can create/switch between analysis sessions
+6. Dynamic session titles auto-generated from conversation
 ```
 
 ### Layout
 
 ```
-┌──────────────────────────────────────────────────┐
-│  GT Intelligence — Market Analyst                │
-├──────────────┬───────────────────────────────────┤
-│              │                                   │
-│  Dashboard   │  Chat                             │
-│  (left/main) │  (right/drawer)                   │
-│              │                                   │
-│  ┌────────┐  │  ┌─────────────────────────────┐ │
-│  │ Summary│  │  │ Ask: "Top produk cokelat?"  │ │
-│  │ Cards  │  │  │                             │ │
-│  └────────┘  │  │ Agent: [SQL] → [table]      │ │
-│  ┌────────┐  │  │         → [chart]           │ │
-│  │ Charts │  │  │         → [insight]         │ │
-│  │ (3-4)  │  │  │                             │ │
-│  └────────┘  │  │ Follow-up: "Compare with    │ │
-│              │  │ Bandung?"                    │ │
-│              │  └─────────────────────────────┘ │
-├──────────────┴───────────────────────────────────┤
-│  [Dashboard]  [New Chat]  [Chat History]         │
-└──────────────────────────────────────────────────┘
+┌──────────────────────────────────────────┬──────────────────┐
+│  GT Intelligence — Market Analyst        │  [💬 Tutup Chat] │
+├──────────────────────────────────────────┼──────────────────┤
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐       │  🤖 Analis Pasar │
+│  │ 📦  │ │ 🏆  │ │ 🏪  │ │ 📍  │       │  Sesi: [▼] [➕]  │
+│  │672  │ │snack│ │374  │ │32   │       │                  │
+│  └─────┘ └─────┘ └─────┘ └─────┘       │  ⚡ Quick Actions │
+│                                          │  [🏆] [📈] [💰]  │
+│  📊 Demand  │  💰 Harga                  │  [🗺️] [📊] [🍫]  │
+│  🗺️ Top 10 Kota                         │                  │
+│  📈 Quadrant │ 💵 Revenue │ 🍫 Specs     │  💬 chat history  │
+└──────────────────────────────────────────┴──────────────────┘
 ```
 
-### Dashboard (Predefined Layout, Live SQL Data)
+### Dashboard (8 Widgets)
 
-The dashboard loads on open. Layout is fixed (4 metric cards + 3 charts), but every element queries live data from SQLite on each load.
-**Not customizable via UI** — data team modifies code to change layout. Metrics always reflect current data.
+The dashboard loads on open with 4 metric cards + 4 chart rows (8 widgets total).
+Every element queries live data from DuckDB on each load.
 
-| Element | What It Shows | Data Source |
-|---------|--------------|-------------|
-| Metric card | Total products scraped | `COUNT(*)` |
-| Metric card | Top subcategory by demand | `GROUP BY subcategory` |
-| Metric card | Average price | `AVG(price)` |
-| Metric card | Products on Java Island | `WHERE location LIKE '%Jawa%'` |
-| Chart | Subcategory demand ranking | Bar chart |
-| Chart | Price distribution | Histogram |
-| Chart | Geographic distribution | Bar chart by city |
+| # | Widget | What It Shows | Data Source |
+|---|--------|--------------|-------------|
+| 1 | Market Snapshot | Total products, top subcategory, total shops, total cities | `COUNT(*)`, `GROUP BY` |
+| 2 | Subcategory Comparison | Demand ranking by subcategory (bar chart) | `SUM(sold_count) GROUP BY subcategory` |
+| 3 | Price Sweet Spot | Price distribution histogram | `CASE WHEN price...` |
+| 4 | Top 10 Cities | Geographic distribution (horizontal bar) | `GROUP BY shop_location` |
+| 5 | Product Spec Signals | Top flavor/weight per subcategory (table) | `GROUP BY subcategory, flavor, weight` |
+| 6 | Trend Analysis | Google Trends interest over 12 months (line chart) | pytrends API (cached) |
+| 7 | Opportunity Quadrant | Demand vs Quality scatter (4 quadrants) | `sold_count vs rating` scatter |
+| 8 | Revenue Proxy | Price vs Demand scatter | `price vs sold_count` scatter |
+
+**Opportunity Quadrant Interpretation (from brand owner / product creator perspective):**
+
+| Quadrant | Signal | Action |
+|----------|--------|--------|
+| High Demand + High Quality | ⭐ Winning Formula | Study and replicate |
+| Low Demand + High Quality | 💎 Hidden Gem (Opportunity) | Develop and promote |
+| High Demand + Low Quality | ⚠️ Volume Only | Improve quality |
+| Low Demand + Low Quality | ❌ Avoid | Don't enter |
+
 **Quick action buttons (map to analysis categories):**
 
 | Button | Category | Predefined Prompt |
 |--------|----------|------------------|
-| Produk Terlaris | Cat 1: Demand | "Produk mana yang paling banyak terjual bulan ini? Top 10 berdasarkan sold_count" |
-| Tren Demand | Cat 1: Demand | "Bagaimana tren penjualan 5 produk terlaris dalam beberapa waktu terakhir?" |
-| Estimasi Pendapatan | Cat 2: Profitability | "Produk mana yang menghasilkan estimasi pendapatan tertinggi (harga × terjual)?" |
-| Analisis Regional | Cat 3: Geographic | "Bagaimana distribusi penjualan across kota di Jawa? Kota mana paling banyak jual?" |
-| Tren Waktu | Cat 4: Temporal | "Bagaimana pola penjualan mingguan? Apakah ada tren naik atau turun?" |
-| Sinyal Sukses Produk | Cat 5: Product Dev | "Apa spesifikasi produk (rasa, berat, varian) yang paling laris di tiap subkategori? Produk seperti apa yang sebaiknya kami kembangkan?" |
+| 🏆 Terlaris | Cat 1: Demand | Top 10 produk terlaris bulan ini |
+| 📈 Tren | Cat 1: Demand | Tren penjualan per subkategori |
+| 💰 Pendapatan | Cat 2: Profitability | Estimasi pendapatan tertinggi (harga × terjual) |
+| 🗺️ Regional | Cat 3: Geographic | Distribusi penjualan per kota di Jawa |
+| 📊 Harga | Cat 2: Profitability | Harga rata-rata per subkategori |
+| 🍫 Specs | Cat 5: Product Dev | Spesifikasi produk paling laris (rasa, berat) |
 
-### Dashboard Layout
+### Chat (Agentic AI)
 
-```
-┌──────────────────────────────────────────┬────────────────────┐
-│  Main Area (75%)                         │  Side Panel (25%)  │
-│                                          │  (collapsible)     │
-│  ┌──────────────────────────────────┐    │                    │
-│  │ Filters: Subcategory | City | $  │    │  💬 Analyst Agent  │
-│  └──────────────────────────────────┘    │  [+ New Analysis]  │
-│                                          │                    │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐   │  📋 Analysis 1     │
-│  │Total │ │Top   │ │Avg   │ │Java  │   │  📋 Analysis 2     │
-│  │672   │ │Snacks│ │Rp44k │ │672   │   │                    │
-│  └──────┘ └──────┘ └──────┘ └──────┘   │  Chat messages     │
-│                                          │  with SQL + table  │
-│  ┌─────────────────┐ ┌────────────┐     │  + chart (expand)  │
-│  │Subcat Demand    │ │Price Dist  │     │  + insight         │
-│  └─────────────────┘ └────────────┘     │  + follow-ups      │
-│  ┌─────────────────┐ ┌────────────┐     │                    │
-│  │Geo Distribution │ │Quadrant    │     │  [Input question]  │
-│  │                 │ │Demand×Rate │     │                    │
-│  └─────────────────┘ └────────────┘     │                    │
-│                                          │  [💬] toggle       │
-└──────────────────────────────────────────┴────────────────────┘
-```
-
-### Chat (Side Panel)
-
-- Collapsible side panel (25% width when open, hidden when collapsed)
-- Multi-session: user creates new analysis, previous ones persist
-- Agent queries DuckDB, returns SQL + data table + chart + insight
-- Charts in chat are clickable → expand full-screen modal
+- Multi-step ReAct (Reason-Act-Observe) loop — not just single-shot SQL
+- Agent can ask clarifying questions mid-conversation
+- Agent can chain multiple SQL queries in one answer
+- Agent can explore data before answering (discovery queries)
+- Dynamic session titles auto-generated by LLM
+- All answers grounded in data via MDL semantic layer
 - Follow-up suggestions after each answer
+- Unanswerable questions handled gracefully (profit margins, buyer data, etc.)
 
-### Dashboard Widgets (8 total)
+**Agent Response Format:**
+```
+[SQL Query] → [Data Table] → [Insight] → [Chart] → [Follow-up Suggestions]
+```
 
-| Widget | Type | Data |
-|--------|------|------|
-| Market snapshot | 4 metric cards | Products, demand, avg price, avg rating |
-| Subcategory comparison | Grouped bar | Demand + price per subcategory |
-| Price sweet spot | Histogram + avg line | Price distribution |
-| Top 10 cities | Horizontal bar | City demand ranking |
-| Product spec signals | Table | Top flavors/weights per subcategory |
-| Trend analysis | Line chart | Google Trends (rising/declowing subcategories) |
-| Opportunity quadrant | Scatter | Demand vs rating (Quality Gap / Winning Formula / Hidden Gem / Failing) |
-| Revenue proxy | Scatter | Price vs demand per product |
+**Agentic Capabilities:**
+- Intent classification: direct_answer, needs_exploration, needs_clarification, chain_queries
+- Max 3 iterations per question (prevent infinite loops)
+- SQL error retry with auto-fix
+- Intermediate steps recorded for transparency
 
-### Interface Tiers (Target: "Excellent")
+### Interface Tiers (Target: "Excellent") ✅ ACHIEVED
 
-**Minimum (must have):**
+**Minimum (must have):** ✅
 - Dashboard with summary metrics
 - Chat prompt box
 - Clear LLM output with data reference
 
-**Better (target):**
+**Better (target):** ✅
 - Suggested questions as quick action buttons
 - Data/metric references in answers
 - Error handling for unanswerable questions
 
-**Excellent (target):**
-- Agent queries data via WrenAI
-- Generates charts inline
+**Excellent (target):** ✅
+- Agentic AI with multi-step reasoning
+- Generates charts inline (Plotly)
 - Suggests follow-up analysis
+- Dynamic session titles
+- Opportunity quadrant analysis
+- Google Trends integration
 
 ---
 
@@ -449,13 +383,38 @@ The dashboard loads on open. Layout is fixed (4 metric cards + 3 charts), but ev
 | Layer | Tool | Why |
 |-------|------|-----|
 | Scraping | Python + `tokopaedi` (PyPI) | Mobile API spoofing bypasses Akamai; actively maintained |
-| Trend data | Google Trends API (`pytrends`) | Free search interest trends (past 12 months) as demand proxy |
 | Data storage | SQLite | File-based, no server needed |
 | Data processing | Pandas | Industry standard, easy to explain |
-| Spec parsing | DeepSeek v4 Flash (SumoPod AI) | LLM extracts flavor/weight/variant from product names |
-| Analytics + LLM Agent | OpenAI-compatible API via SumoPod DeepSeek | Text-to-SQL agent with business context |
-| Interface | Streamlit (dashboard-first + collapsible side chat) | Dashboard main view, analyst agent in side panel |
-| Containerization | Docker + Docker Compose | Single container for all services |
+| Spec parsing | DeepSeek v4 Flash (SumoPod AI) | LLM extracts flavor/weight/variant from product names (80%+ accuracy) |
+| Analytics + LLM Agent | OpenAI gpt-4o-mini + ReAct loop | Multi-step reasoning, grounded in MDL semantic layer |
+| Custom UI | FastAPI + HTML/CSS/JS | Production-smooth, modern design |
+| Backup UI | Streamlit | Dashboard-first layout, backup/prototype |
+| Google Trends | pytrends | Search interest data (24hr cache, rate-limit aware) |
+| Containerization | Docker + Docker Compose | Dual-service container (FastAPI + Streamlit) |
+| Deployment | Single VPS (43.133.140.154) | All services on one machine |
+| Testing | Python assert + pytest | Simple verification |
+
+### Data Limitations
+
+| Field | Status | Impact |
+|-------|--------|--------|
+| review_count | ⚠️ ALL ZERO (tokopaedi doesn't expose) | Cannot use for quality signals |
+| rating | ✅ 616/672 have rating > 0 | Used as quality signal |
+| flavor/weight/variant | ⚠️ 40-65% null | Best-effort extraction from titles |
+| Google Trends | ⚠️ search interest ≠ actual sales | Supplementary signal only |
+
+### MVP vs Production
+
+| Concern | MVP (This Project) | Production (Future) |
+|---------|-------------------|---------------------|
+| Database | SQLite (file-based) | PostgreSQL (concurrent access, millions of rows) |
+| UI | Custom HTML/CSS/JS + Streamlit backup | React/Vue SPA with auth |
+| LLM Agent | OpenAI gpt-4o-mini + ReAct | Self-hosted LLM + RAG pipeline |
+| Deployment | Single VPS, Docker Compose | Kubernetes, load balancer |
+| Scraping | Manual run, tokopaedi mobile API | Scheduled (cron/Airflow), proxy rotation |
+| Google Trends | pytrends (unofficial) | Official API or SerpAPI |
+| Authentication | None (single user) | Multi-user auth, RBAC |
+| Data pipeline | Batch (scrape → clean → serve) | Streaming (real-time updates) |
 | Deployment | Single VPS (43.133.140.154) | All services on one machine |
 | Testing | Python assert + pytest | Simple verification |
 
@@ -467,13 +426,11 @@ The dashboard loads on open. Layout is fixed (4 metric cards + 3 charts), but ev
 - **Apache 2.0 license:** Permissive, no restrictions
 - **Agent-native:** Built for AI agent workflows, not just a library
 
-### Why Streamlit + Custom UI Over Chainlit
+### Why Chainlit Over Streamlit
 
-- **Chainlit is chat-first by design.** Dashboard-first UX requires dashboard as main view, chat as side panel. Chainlit can't do this natively.
-- **Streamlit for dashboard** — native metric cards, filters, Plotly charts, session state
-- **Custom HTML/CSS/JS** if Streamlit can't achieve the desired smoothness — FastAPI backend + vanilla frontend
-- **Multi-session chat** — `st.session_state` or custom implementation
-- **Chart expansion** — modal/popup when clicking chart in chat
+- **Built for conversational AI:** Chat UI, tool calls, actions out of the box
+- **Agent-native:** Designed for LLM agents, not general-purpose dashboards
+- **Pairs with WrenAI:** Both are agent-focused, natural fit
 
 ### MVP vs Production
 
@@ -482,15 +439,15 @@ This section documents what's POC/MVP and what would change in production.
 | Concern | MVP (This Project) | Production (Future) |
 |---------|-------------------|---------------------|
 | Database | SQLite (file-based) | PostgreSQL (concurrent access, millions of rows) |
-| UI | Streamlit + custom HTML/CSS/JS | Full React/Next.js frontend |
-| LLM Agent | SumoPod DeepSeek V4 Flash (API) | Self-hosted LLM or fine-tuned SLM |
+| UI | Chainlit (conversational) | Chainlit + custom dashboard for non-chat users |
+| LLM Agent | WrenAI + OpenAI | WrenAI + self-hosted LLM option |
 | Deployment | Single VPS, Docker Compose | Kubernetes, load balancer, auto-scaling |
 | Scraping | Manual run, tokopaedi mobile API | Scheduled (cron/Airflow), retry logic, distributed, proxy rotation |
 | Scheduling | Manual | Cron job or cloud scheduler |
 | Monitoring | Logs only | Prometheus + Grafana |
 | Authentication | None (single user) | Multi-user auth, RBAC |
 | Data pipeline | Batch (scrape → clean → serve) | Streaming (real-time updates) |
-| Cost | ~Rp 60k/month (VPS only) | VPS + DB hosting + LLM API costs |
+| Cost | ~$0 (local) | VPS + DB hosting + LLM API costs |
 
 **The test case explicitly asks:** "what's included in the POC/MVP" and "what's not production-ready". This table answers both.
 

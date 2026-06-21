@@ -1,109 +1,145 @@
-# Bangunindo LLM Analytics MVP — Test Case
+# GT Intelligence — Market Intelligence for General Trade
 
-**Company:** PT Bangunindo Teknusa Jaya
-**Role:** R&D Specialist
-**Type:** Take-home case study (5 days)
-**Status:** In progress
+> LLM-powered market intelligence system that helps general trade businesses identify winning products to develop. Scrapes marketplace data, analyzes trends, and provides a natural-language interface for data-driven product decisions.
 
----
-
-## Test Case Summary
-
-Build a lightweight MVP that demonstrates how you research, design, build, validate, and explain a practical LLM-powered analytics solution.
-
-**Core deliverables:**
-1. Data engineering pipeline (raw → clean → analytics-ready)
-2. Analytics layer (5+ business questions answered)
-3. LLM-powered prompt interface (grounded in data, not hallucinating)
-4. MVP interface (dashboard + prompt box)
-5. Git repo + Architecture doc (3-5 pages) + Demo video (7-10 min) + Presentation (5 slides)
-
-**Dataset:** Choose from Kaggle (Retail/Sales, Customer Churn, or Operational/IoT)
-
-**Evaluation criteria:**
-| Area | Weight |
-|------|--------|
-| Problem framing & business understanding | 10% |
-| Data engineering quality | 15% |
-| Analytics quality | 15% |
-| Architecture & technical design | 15% |
-| LLM/prompt interface | 15% |
-| Risk, security & hallucination awareness | 10% |
-| Pragmatism & anti-over-engineering | 10% |
-| Communication & documentation | 10% |
-
-**Timeline:** 5 days from receiving (deadline: Monday June 22)
+**Built for:** PT Bangunindo Teknusa Jaya — R&D Specialist (AI & Data) Test Case  
+**Dataset:** 672 food & beverage products from Tokopedia (Java Island)  
+**Stack:** Python, DeepSeek V4 Flash, DuckDB, Streamlit, Docker  
+**Live demo:** http://43.133.140.154:8000
 
 ---
 
-## Questions for Recruiter (Ask Today — Friday)
+## Quick Start
 
-**Only 3 questions not answered in the PDF:**
+```bash
+# Clone
+git clone git@github.com:zakysyihan/gt-intelligence.git
+cd gt-intelligence
 
-1. **LLM API** — Which provider? Does the company provide an API key, or should I use my own? Budget cap for API calls during the 5-day build?
+# Setup
+cp .env.example .env
+# Edit .env — add your SumoPod AI API key
 
-2. **AI coding tools** — Am I allowed to use AI coding assistants (Claude Code, Cursor, etc.)? This changes my approach significantly.
+# Run (Docker)
+docker compose up --build
 
-3. **Video hosting** — "Demo video link" — where should I host it? YouTube (unlisted)? Google Drive? Loom? Does the team have a preferred platform?
+# Run (local)
+pip install -r requirements.txt
+python -m src.pipeline.run_pipeline
+streamlit run src/app/app.py
+```
 
-**Everything else is already in the PDF:**
-- Dataset: Kaggle (Retail, Churn, or IoT)
-- Tech stack: Flexible (Python, Streamlit, Superset, etc.)
-- Deployment: Optional
-- Deliverables: Git + architecture doc + demo video + presentation
-- Timeline: 5 days from receiving
-- Evaluation: 8 criteria, weighted 10-15% each
+Open http://localhost:8000
 
 ---
 
-## Folder Structure (Planned)
+## What This Does
+
+**Problem:** In general trade businesses, defining the right product to develop is difficult. Data is scattered across marketplaces, not centralized, and hard for non-technical teams to collect.
+
+**Solution:** GT Intelligence scrapes product data from Indonesian marketplaces, analyzes demand patterns, pricing, and geographic distribution, and lets users ask questions in natural language (Indonesian).
+
+### Dashboard
+
+- Market overview: total products, demand volume, avg price, avg rating
+- Subcategory comparison (chocolate, candy, snacks)
+- Price distribution analysis
+- Geographic distribution across Java Island
+- Opportunity quadrant: demand vs quality (identifies market gaps)
+- Product spec signals: top flavors, weights, variants
+
+### AI Analyst Agent
+
+- Ask questions in Indonesian (e.g., "Produk cokelat apa yang paling laku di Bandung?")
+- Agent generates SQL, queries the database, returns data + chart + insight
+- Follow-up suggestions after each answer
+- Handles unanswerable questions gracefully (e.g., profit margins — no cost data)
+
+---
+
+## Project Structure
 
 ```
-bangunindo-analytics-mvp/
-├── CLAUDE.md                 # Claude Code context
-├── AGENTS.md                 # Kilo Code + Claude Code rules
-├── SPEC.md                   # Technical specification (drives everything)
-├── docs/
-│   ├── CASE-STUDY.md         # Extracted test case requirements
-│   ├── ARCHITECTURE.md       # 3-5 page architecture doc
-│   └── ASSESSMENT.md         # Dataset analysis + business framing
-├── data/
-│   ├── raw/                  # Original dataset
-│   ├── cleaned/              # Transformed data
-│   └── analytics/            # Analytics-ready data
+gt-intelligence/
 ├── src/
-│   ├── pipeline/             # Data ingestion + cleaning + transformation
-│   ├── analytics/            # Business questions + insights
-│   ├── llm/                  # LLM interface + grounding
-│   └── app/                  # MVP interface (Streamlit or similar)
-├── prompts/                  # LLM prompt templates
-├── notebooks/                # Exploratory analysis
-├── tests/                    # Data quality + integration tests
-└── submission/
-    ├── architecture.pdf      # 3-5 page architecture doc
-    ├── presentation.pdf      # 5 slides
-    └── demo-video.mp4        # 7-10 min walkthrough
+│   ├── pipeline/          # Data scraping, cleaning, validation
+│   ├── llm/               # Agent, MDL manifest, data loader
+│   └── app/               # Streamlit UI + custom frontend
+├── data/
+│   ├── raw/               # Scraped JSON
+│   ├── staging/           # Backup before transformation
+│   ├── cleaned/           # Cleaned CSV
+│   └── analytics/         # SQLite database (products.db)
+├── research/              # Technical research & decisions
+├── docs/                  # Architecture document
+├── submission/            # Presentation, demo video
+├── SPEC.md                # Technical specification
+└── Dockerfile
 ```
 
 ---
 
-## Development Approach: Spec-Driven AI-Assisted Development
-
-**Not vibe coding. Not spec-agnostic. Spec-first, AI-assisted.**
-
-The pattern:
+## Data Pipeline
 
 ```
-1. SPEC    → Define what to build, why, and how (before any code)
-2. RESEARCH → Investigate dataset, tools, trade-offs
-3. PLAN    → Architecture, data flow, tech decisions
-4. BUILD   → AI-assisted implementation from spec
-5. VERIFY  → Test against spec requirements
-6. DOCUMENT → Architecture doc, presentation, video
+Tokopedia API → Raw JSON → Staging → Clean → LLM Parse → Validate → SQLite
 ```
 
-**Why this works for a 5-day deadline:**
-- Spec prevents scope creep (most common time-waster)
-- AI accelerates implementation (3-5x faster than manual)
-- Verification catches drift from requirements
-- Documentation writes itself from the spec
+- **Scraping:** `tokopaedi` library (mobile API spoofing, bypasses Akamai)
+- **Cleaning:** Dedup, normalize prices, parse flavor/weight/variant from product names
+- **Validation:** 7 checks (schema, types, nulls, ranges, dedup, geography, row count)
+- **Storage:** SQLite (1 table, 14 columns, 672 products)
+
+---
+
+## Assumptions
+
+1. Tokopedia data represents general trade market for food & beverage
+2. `sold_count` reflects monthly sales volume (demand proxy)
+3. `price × sold_count` is a revenue proxy (not actual profit — cost data unavailable)
+4. `rating` (1-5) reflects customer satisfaction
+5. Google Trends search interest correlates with market demand
+6. Product title parsing (flavor/weight/variant) is best-effort (~60% accuracy)
+
+---
+
+## Known Limitations
+
+| Limitation | Impact | Mitigation |
+|-----------|--------|-----------|
+| Data scraped at one point in time | No real sales trends | Google Trends provides 12-month search interest as proxy |
+| Only Tokopedia (Shopee/Blibli blocked by Akamai) | Single marketplace view | Documented; multi-marketplace is a future improvement |
+| No profit margin data | Can't assess true profitability | Revenue proxy (price × demand) documented as limitation |
+| review_count = 0 for all products | No engagement/loyalty signal | Rating used instead; review data requires page-level scraping |
+| Product spec parsing ~60% accuracy | Some flavor/weight/variant fields null | Documented as best-effort; regex + LLM extraction |
+| No buyer location data | Only seller location available | Seller location used as geographic proxy |
+| Missing "sweets" subcategory | Tokopedia didn't return results | Documented; scope limited to chocolate, candy, snacks |
+
+---
+
+## Technology Choices
+
+| Choice | Alternative | Why This |
+|--------|------------|---------|
+| SQLite | PostgreSQL | 672 rows, single user — PostgreSQL overkill |
+| DeepSeek V4 Flash | GPT-5 | Free on SumoPod, 94%+ SQL accuracy for our simple schema |
+| Streamlit + Custom UI | React/Next.js | 3-day sprint — Streamlit fastest for dashboard + chat |
+| Python + Pandas | Polars | More common, easier to explain |
+| Docker | Manual deploy | One command to run, reproducible |
+
+---
+
+## Deliverables
+
+| Deliverable | Location | Status |
+|------------|----------|--------|
+| Source code | This repository | ✅ |
+| Architecture document | `docs/ARCHITECTURE.md` | ✅ |
+| Presentation | `submission/presentation-outline.md` | ✅ |
+| Demo video | `submission/demo-video.mp4` | ⏳ |
+
+---
+
+## License
+
+Private — Built for PT Bangunindo Teknusa Jaya test case submission.
