@@ -115,6 +115,8 @@ def run_pipeline(skip_scrape: bool = False, skip_llm: bool = False):
         # Add indexes
         conn.execute("CREATE INDEX IF NOT EXISTS idx_subcategory ON products(subcategory)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_shop_location ON products(shop_location)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_shop_province ON products(shop_province)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_category ON products(category)")
 
         row_count = conn.execute("SELECT COUNT(*) FROM products").fetchone()[0]
         print(f"  Written {row_count} rows to {db_path}")

@@ -15,13 +15,16 @@ from pathlib import Path
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# Schema — all 14 fields + computed columns
+# Schema — all fields + computed columns
 # ---------------------------------------------------------------------------
 
 REQUIRED_FIELDS = [
     "timestamp",
     "shop_location",
+    "shop_city",
+    "shop_province",
     "product_name",
+    "category",
     "subcategory",
     "price",
     "rating",
@@ -35,31 +38,173 @@ REQUIRED_FIELDS = [
     "variant",
 ]
 
-# Java Island provinces and cities for filtering
-JAVA_ISLAND_LOCATIONS = {
-    # Provinces
-    "jakarta", "dki jakarta",
-    "jawa barat", "jabar",
-    "jawa tengah", "jateng",
-    "jawa timur", "jatim",
-    "banten",
-    "yogyakarta", "di yogyakarta", "jogja",
-    "jawa",
-    # Major Java cities (used in marketplace seller locations)
-    "bandung", "surabaya", "semarang", "tangerang", "bekasi",
-    "depok", "bogor", "malang", "solo", "denpasar", "cirebon",
-    "tasikmalaya", "purwokerto", "kediri", "blitar", "madiun",
-    "jember", "probolinggo", "majalaya", "garut", "sumedang",
-    "indramayu", "subang", "karawang", "purwakarta", "ciamis",
-    "banjar", "cimahi", "sukabumi", "cianjur", "purwakarta",
-    "tegal", "pemalang", "purbalingga", "banjarnegara", "wonosobo",
-    "magelang", "sleman", "bantul", "kulon progo", "gunung kidul",
-    "gresik", "lamongan", "tuban", "bojonegoro", "nganjuk",
-    "ngawi", "ponorogo", "pacitan", "trenggalek", "lumajang",
-    "situbondo", "bondowoso", "banyuwangi", "pasuruan", "bangil",
-    "mojokerto", "jombang", "tulungagung", "blitar", "kediri",
-    "batu",
+
+# ---------------------------------------------------------------------------
+# City → Province mapping (official Indonesian admin divisions)
+# ---------------------------------------------------------------------------
+# Source: https://en.wikipedia.org/wiki/List_of_regencies_and_cities_of_Indonesia
+# "Kab." = Kabupaten (regency), "Kota" = city — they are different admin regions.
+# "Kab. Bandung" (regency) ≠ "Bandung" (city), even though both are in West Java.
+
+CITY_TO_PROVINCE = {
+    # DKI Jakarta
+    "Jakarta Barat": "DKI Jakarta",
+    "Jakarta Pusat": "DKI Jakarta",
+    "Jakarta Selatan": "DKI Jakarta",
+    "Jakarta Timur": "DKI Jakarta",
+    "Jakarta Utara": "DKI Jakarta",
+    # Banten
+    "Tangerang": "Banten",
+    "Tangerang Selatan": "Banten",
+    "Kab. Tangerang": "Banten",
+    # Jawa Barat
+    "Bandung": "Jawa Barat",
+    "Kab. Bandung": "Jawa Barat",
+    "Kab. Bandung Barat": "Jawa Barat",
+    "Bekasi": "Jawa Barat",
+    "Kab. Bekasi": "Jawa Barat",
+    "Bogor": "Jawa Barat",
+    "Kab. Bogor": "Jawa Barat",
+    "Cirebon": "Jawa Barat",
+    "Kab. Cirebon": "Jawa Barat",
+    "Depok": "Jawa Barat",
+    "Tasikmalaya": "Jawa Barat",
+    "Kab. Tasikmalaya": "Jawa Barat",
+    "Cimahi": "Jawa Barat",
+    "Sukabumi": "Jawa Barat",
+    "Kab. Sukabumi": "Jawa Barat",
+    "Garut": "Jawa Barat",
+    "Kab. Garut": "Jawa Barat",
+    "Sumedang": "Jawa Barat",
+    "Kab. Sumedang": "Jawa Barat",
+    "Indramayu": "Jawa Barat",
+    "Kab. Indramayu": "Jawa Barat",
+    "Karawang": "Jawa Barat",
+    "Kab. Karawang": "Jawa Barat",
+    "Purwakarta": "Jawa Barat",
+    "Kab. Purwakarta": "Jawa Barat",
+    "Subang": "Jawa Barat",
+    "Kab. Subang": "Jawa Barat",
+    "Majalaya": "Jawa Barat",
+    "Ciamis": "Jawa Barat",
+    "Kab. Ciamis": "Jawa Barat",
+    "Banjar": "Jawa Barat",
+    "Cianjur": "Jawa Barat",
+    "Kab. Cianjur": "Jawa Barat",
+    # Jawa Tengah
+    "Semarang": "Jawa Tengah",
+    "Kab. Semarang": "Jawa Tengah",
+    "Solo": "Jawa Tengah",
+    "Surakarta": "Jawa Tengah",
+    "Tegal": "Jawa Tengah",
+    "Kab. Tegal": "Jawa Tengah",
+    "Pemalang": "Jawa Tengah",
+    "Kab. Pemalang": "Jawa Tengah",
+    "Purbalingga": "Jawa Tengah",
+    "Kab. Purbalingga": "Jawa Tengah",
+    "Banjarnegara": "Jawa Tengah",
+    "Kab. Banjarnegara": "Jawa Tengah",
+    "Wonosobo": "Jawa Tengah",
+    "Kab. Wonosobo": "Jawa Tengah",
+    "Magelang": "Jawa Tengah",
+    "Kab. Magelang": "Jawa Tengah",
+    "Purwokerto": "Jawa Tengah",
+    "Banyumas": "Jawa Tengah",
+    "Kab. Banyumas": "Jawa Tengah",
+    # DI Yogyakarta
+    "Yogyakarta": "DI Yogyakarta",
+    "Sleman": "DI Yogyakarta",
+    "Kab. Sleman": "DI Yogyakarta",
+    "Bantul": "DI Yogyakarta",
+    "Kab. Bantul": "DI Yogyakarta",
+    "Kulon Progo": "DI Yogyakarta",
+    "Kab. Kulon Progo": "DI Yogyakarta",
+    "Gunung Kidul": "DI Yogyakarta",
+    "Kab. Gunung Kidul": "DI Yogyakarta",
+    # Jawa Timur
+    "Surabaya": "Jawa Timur",
+    "Malang": "Jawa Timur",
+    "Kab. Malang": "Jawa Timur",
+    "Kediri": "Jawa Timur",
+    "Kab. Kediri": "Jawa Timur",
+    "Blitar": "Jawa Timur",
+    "Kab. Blitar": "Jawa Timur",
+    "Madiun": "Jawa Timur",
+    "Kab. Madiun": "Jawa Timur",
+    "Probolinggo": "Jawa Timur",
+    "Kab. Probolinggo": "Jawa Timur",
+    "Jember": "Jawa Timur",
+    "Kab. Jember": "Jawa Timur",
+    "Banyuwangi": "Jawa Timur",
+    "Kab. Banyuwangi": "Jawa Timur",
+    "Pasuruan": "Jawa Timur",
+    "Kab. Pasuruan": "Jawa Timur",
+    "Mojokerto": "Jawa Timur",
+    "Kab. Mojokerto": "Jawa Timur",
+    "Jombang": "Jawa Timur",
+    "Kab. Jombang": "Jawa Timur",
+    "Tulungagung": "Jawa Timur",
+    "Kab. Tulungagung": "Jawa Timur",
+    "Gresik": "Jawa Timur",
+    "Kab. Gresik": "Jawa Timur",
+    "Lamongan": "Jawa Timur",
+    "Kab. Lamongan": "Jawa Timur",
+    "Tuban": "Jawa Timur",
+    "Kab. Tuban": "Jawa Timur",
+    "Bojonegoro": "Jawa Timur",
+    "Kab. Bojonegoro": "Jawa Timur",
+    "Nganjuk": "Jawa Timur",
+    "Kab. Nganjuk": "Jawa Timur",
+    "Ngawi": "Jawa Timur",
+    "Kab. Ngawi": "Jawa Timur",
+    "Ponorogo": "Jawa Timur",
+    "Kab. Ponorogo": "Jawa Timur",
+    "Pacitan": "Jawa Timur",
+    "Kab. Pacitan": "Jawa Timur",
+    "Trenggalek": "Jawa Timur",
+    "Kab. Trenggalek": "Jawa Timur",
+    "Lumajang": "Jawa Timur",
+    "Kab. Lumajang": "Jawa Timur",
+    "Situbondo": "Jawa Timur",
+    "Kab. Situbondo": "Jawa Timur",
+    "Bondowoso": "Jawa Timur",
+    "Kab. Bondowoso": "Jawa Timur",
+    "Bangil": "Jawa Timur",
+    "Batu": "Jawa Timur",
 }
+
+
+def normalize_city(raw_location: str) -> str:
+    """Normalize city name: trim whitespace, keep 'Kab.' prefix as-is.
+
+    "Kab. Bandung" and "Bandung" are different admin regions (regency vs city).
+    We keep the original distinction but normalize whitespace.
+    """
+    if not raw_location:
+        return ""
+    return raw_location.strip()
+
+
+def get_province(city: str) -> str:
+    """Map city name to province using official Indonesian admin data.
+
+    Returns empty string if city is not in the mapping.
+    """
+    if not city:
+        return ""
+    # Try exact match first
+    if city in CITY_TO_PROVINCE:
+        return CITY_TO_PROVINCE[city]
+    # Try without "Kab. " prefix for fuzzy match
+    stripped = re.sub(r"^Kab\.\s*", "", city)
+    if stripped in CITY_TO_PROVINCE:
+        return CITY_TO_PROVINCE[stripped]
+    # Try case-insensitive
+    city_lower = city.lower()
+    for k, v in CITY_TO_PROVINCE.items():
+        if k.lower() == city_lower:
+            return v
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -83,107 +228,30 @@ KEYWORD_TO_SUBCATEGORY = {
 # Product spec parsing
 # ---------------------------------------------------------------------------
 
-# Common Indonesian/English flavor keywords
 FLAVOR_KEYWORDS = [
-    "sapi panggang",
-    "ayam bakar",
-    "balado",
-    "original",
-    "strawberry",
-    "cokelat",
-    "chocolate",
-    "keju",
-    "cheese",
-    "vanilla",
-    "mocca",
-    "mocha",
-    "greentea",
-    "green tea",
-    "matcha",
-    "taro",
-    "durian",
-    "mangga",
-    "mango",
-    "jeruk",
-    "orange",
-    "lemon",
-    "anggur",
-    "grape",
-    "nanas",
-    "pineapple",
-    "pisang",
-    "banana",
-    "jambu",
-    "guava",
-    "susu",
-    "milk",
-    "kopi",
-    "coffee",
-    "madu",
-    "honey",
-    "pedas",
-    "spicy",
-    "original",
-    "rumput laut",
-    "seaweed",
-    "udang",
-    "shrimp",
-    "BBQ",
-    "barbecue",
-    "bbq",
-    "sapi lada hitam",
-    "black pepper",
-    "rumah",
-    "balado",
-    "sweet corn",
-    "jagung manis",
-    "ayam",
-    "chicken",
-    "sapi",
-    "beef",
-    "ikan",
-    "fish",
+    "sapi panggang", "ayam bakar", "balado", "original", "strawberry",
+    "cokelat", "chocolate", "keju", "cheese", "vanilla", "mocca", "mocha",
+    "greentea", "green tea", "matcha", "taro", "durian", "mangga", "mango",
+    "jeruk", "orange", "lemon", "anggur", "grape", "nanas", "pineapple",
+    "pisang", "banana", "jambu", "guava", "susu", "milk", "kopi", "coffee",
+    "madu", "honey", "pedas", "spicy", "rumput laut", "seaweed", "udang",
+    "shrimp", "BBQ", "barbecue", "bbq", "sapi lada hitam", "black pepper",
+    "sweet corn", "jagung manis", "ayam", "chicken", "sapi", "beef", "ikan", "fish",
 ]
 
-# Weight patterns: 68g, 100gr, 250ml, 1.5kg, etc.
 WEIGHT_PATTERN = re.compile(
     r"(\d+(?:[.,]\d+)?)\s*(g|gr|gram|ml|mL|liter|ltr|l|kg|kilogram)\b",
     re.IGNORECASE,
 )
 
-# Variant keywords
 VARIANT_KEYWORDS = [
-    "large",
-    "big",
-    "small",
-    "mini",
-    "pack",
-    "box",
-    "pouch",
-    "sachet",
-    "tube",
-    "bag",
-    "wrapper",
-    "cup",
-    "bottle",
-    "botol",
-    "kaleng",
-    "can",
-    "jar",
-    "toples",
-    "rex",
-    "bagus",
-    "jumbo",
-    "family",
-    "sharing",
-    "single",
-    "multi",
-    "variant",
+    "large", "big", "small", "mini", "pack", "box", "pouch", "sachet",
+    "tube", "bag", "wrapper", "cup", "bottle", "botol", "kaleng", "can",
+    "jar", "toples", "rex", "jumbo", "family", "sharing", "single", "multi",
 ]
 
 
 def parse_flavor(product_name: str) -> str:
-    """Extract flavor from product name using keyword matching."""
     name_lower = product_name.lower()
     for flavor in FLAVOR_KEYWORDS:
         if flavor.lower() in name_lower:
@@ -192,12 +260,10 @@ def parse_flavor(product_name: str) -> str:
 
 
 def parse_weight(product_name: str) -> str:
-    """Extract weight/netto from product name using regex."""
     match = WEIGHT_PATTERN.search(product_name)
     if match:
         value = match.group(1).replace(",", ".")
         unit = match.group(2).lower()
-        # Normalize unit
         if unit in ("gr", "gram"):
             unit = "g"
         elif unit in ("liter", "ltr", "l"):
@@ -209,7 +275,6 @@ def parse_weight(product_name: str) -> str:
 
 
 def parse_variant(product_name: str) -> str:
-    """Extract variant from product name using keyword matching."""
     name_lower = product_name.lower()
     for variant in VARIANT_KEYWORDS:
         if variant in name_lower:
@@ -223,17 +288,12 @@ def parse_variant(product_name: str) -> str:
 
 
 def normalize_price(price) -> int:
-    """Normalize price to integer IDR.
-    Handles: 'Rp 50.000', 'Rp50000', 50000, '50.000', etc.
-    """
     if isinstance(price, (int, float)):
         return int(price)
     if not price:
         return 0
     s = str(price)
-    # Remove Rp prefix, whitespace, dots
     s = re.sub(r"[Rp\s.]", "", s, flags=re.IGNORECASE)
-    # Remove commas used as decimal separator (Indonesian style)
     s = s.replace(",", "")
     try:
         return int(s)
@@ -242,20 +302,13 @@ def normalize_price(price) -> int:
 
 
 def normalize_sold_count(sold) -> int:
-    """Normalize sold_count string to integer.
-    Handles: '1rb+' → 1000, '10rb+' → 10000, '100rb+' → 100000,
-             '1jt+' → 1000000, '500+' → 500
-    """
     if isinstance(sold, (int, float)):
         return int(sold)
     if not sold:
         return 0
     s = str(sold).lower().strip()
-    # Remove '+' and whitespace
     s = s.replace("+", "").strip()
-    # Remove dots (thousand separator)
     s = s.replace(".", "")
-
     try:
         if "jt" in s or "juta" in s:
             num = float(s.replace("jt", "").replace("juta", "").strip())
@@ -269,14 +322,6 @@ def normalize_sold_count(sold) -> int:
         return 0
 
 
-def is_java_location(location: str) -> bool:
-    """Check if shop location is in Java Island."""
-    if not location:
-        return False
-    loc_lower = location.lower().strip()
-    return any(java_loc in loc_lower for java_loc in JAVA_ISLAND_LOCATIONS)
-
-
 # ---------------------------------------------------------------------------
 # Main cleaning pipeline
 # ---------------------------------------------------------------------------
@@ -284,7 +329,6 @@ def is_java_location(location: str) -> bool:
 
 def clean_products(staging_dir: Path, output_path: Path) -> pd.DataFrame:
     """Read staging JSONs, clean, and output CSV."""
-    # Load all JSON files from staging
     all_raw = []
     for json_file in staging_dir.glob("*.json"):
         with open(json_file, "r", encoding="utf-8") as f:
@@ -304,17 +348,14 @@ def clean_products(staging_dir: Path, output_path: Path) -> pd.DataFrame:
     initial_count = len(df)
 
     # --- Map API fields to our schema ---
-    # The scraper already outputs mostly matching fields
-    # Map keyword to subcategory
     if "_keyword" in df.columns:
         df["subcategory"] = df["_keyword"].map(KEYWORD_TO_SUBCATEGORY).fillna("snacks")
-    elif "category" in df.columns:
-        # Fallback: try to map from category name
-        df["subcategory"] = df["category"].apply(
-            lambda c: _category_to_subcategory(str(c))
-        )
     else:
         df["subcategory"] = "snacks"
+
+    # Carry category from staging JSON (e.g., "Makanan & Minuman")
+    if "category" not in df.columns:
+        df["category"] = ""
 
     # Ensure all required fields exist
     for field in REQUIRED_FIELDS:
@@ -341,10 +382,15 @@ def clean_products(staging_dir: Path, output_path: Path) -> pd.DataFrame:
     df["review_count"] = pd.to_numeric(df["review_count"], errors="coerce").fillna(0).astype(int)
     df["shop_rating"] = pd.to_numeric(df["shop_rating"], errors="coerce").fillna(0.0)
 
-    # --- Filter Java Island ---
-    before = len(df)
-    df = df[df["shop_location"].apply(is_java_location)]
-    print(f"After Java Island filter: {len(df)} records (removed {before - len(df)})")
+    # --- Location normalization ---
+    # No geo filter — keep all locations for analytics
+    df["shop_city"] = df["shop_location"].apply(normalize_city)
+    df["shop_province"] = df["shop_city"].apply(get_province)
+
+    province_counts = df["shop_province"].value_counts()
+    unmapped = (df["shop_province"] == "").sum()
+    print(f"Locations: {len(df)} total, {unmapped} unmapped to province")
+    print(f"  Provinces: {dict(province_counts)}")
 
     # --- Parse product specs ---
     df["flavor"] = df["product_name"].apply(parse_flavor)
@@ -356,10 +402,7 @@ def clean_products(staging_dir: Path, output_path: Path) -> pd.DataFrame:
     df["rating_category"] = df["rating"].apply(_rating_category)
 
     # --- Final cleanup ---
-    # Remove rows with zero price (invalid)
     df = df[df["price"] > 0]
-
-    # Ensure correct types
     df["price"] = df["price"].astype(int)
     df["sold_count"] = df["sold_count"].astype(int)
 
@@ -379,20 +422,7 @@ def clean_products(staging_dir: Path, output_path: Path) -> pd.DataFrame:
     return df
 
 
-def _category_to_subcategory(category: str) -> str:
-    """Map Tokopedia category name to our subcategory."""
-    cat_lower = category.lower()
-    if any(w in cat_lower for w in ["chocolate", "cokelat", "coklat"]):
-        return "chocolate"
-    elif any(w in cat_lower for w in ["candy", "permen", "candy"]):
-        return "candy"
-    elif any(w in cat_lower for w in ["snack", "camilan", "keripik", "biskuit", "wafer"]):
-        return "snacks"
-    return "snacks"
-
-
 def _compute_price_buckets(df: pd.DataFrame) -> pd.Series:
-    """Assign price_bucket based on subcategory median."""
     buckets = pd.Series("mid", index=df.index)
     for subcat in df["subcategory"].unique():
         mask = df["subcategory"] == subcat
@@ -408,7 +438,6 @@ def _compute_price_buckets(df: pd.DataFrame) -> pd.Series:
 
 
 def _rating_category(rating: float) -> str:
-    """Categorize rating into low/medium/high."""
     if rating >= 4.5:
         return "high"
     elif rating >= 3.5:

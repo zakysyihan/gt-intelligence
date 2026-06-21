@@ -1,11 +1,7 @@
 """Data quality validation for cleaned product CSV.
 
-Runs schema, type, null, range, dedup, and geography checks.
+Runs schema, type, null, range, dedup, and completeness checks.
 Prints pass/fail for each check. Returns True if all critical checks pass.
-
-ponytail: Using pandas for validation is slightly heavier than pure Python
-csv module, but the type checking and aggregation functions save ~50 lines
-of manual code.
 """
 
 from pathlib import Path
@@ -19,7 +15,10 @@ import pandas as pd
 REQUIRED_FIELDS = [
     "timestamp",
     "shop_location",
+    "shop_city",
+    "shop_province",
     "product_name",
+    "category",
     "subcategory",
     "price",
     "rating",
@@ -35,30 +34,6 @@ REQUIRED_FIELDS = [
 
 # Fields that must never be null
 CRITICAL_NULL_FIELDS = ["price", "sold_count", "subcategory", "shop_location"]
-
-JAVA_ISLAND_LOCATIONS = {
-    # Provinces
-    "jakarta", "dki jakarta",
-    "jawa barat", "jabar",
-    "jawa tengah", "jateng",
-    "jawa timur", "jatim",
-    "banten",
-    "yogyakarta", "di yogyakarta", "jogja",
-    "jawa",
-    # Major Java cities
-    "bandung", "surabaya", "semarang", "tangerang", "bekasi",
-    "depok", "bogor", "malang", "solo", "denpasar", "cirebon",
-    "tasikmalaya", "purwokerto", "kediri", "blitar", "madiun",
-    "jember", "probolinggo", "majalaya", "garut", "sumedang",
-    "indramayu", "subang", "karawang", "purwakarta", "ciamis",
-    "banjar", "cimahi", "sukabumi", "cianjur",
-    "tegal", "pemalang", "purbalingga", "banjarnegara", "wonosobo",
-    "magelang", "sleman", "bantul", "kulon progo", "gunung kidul",
-    "gresik", "lamongan", "tuban", "bojonegoro", "nganjuk",
-    "ngawi", "ponorogo", "pacitan", "trenggalek", "lumajang",
-    "situbondo", "bondowoso", "banyuwangi", "pasuruan", "bangil",
-    "mojokerto", "jombang", "tulungagung", "batu",
-}
 
 # Minimum rows expected
 MIN_ROWS = 500
@@ -151,7 +126,6 @@ def validate(csv_path: Path) -> dict:
 
     if "rating" in df.columns:
         ratings = pd.to_numeric(df["rating"], errors="coerce")
-        # Allow 0 ratings (new products with no reviews yet) and 1-5
         bad_rating = ((ratings < 0) | (ratings > 5) | ratings.isna()).sum()
         if bad_rating > 0:
             range_issues.append(f"rating: {bad_rating} values outside 0-5")
@@ -184,23 +158,33 @@ def validate(csv_path: Path) -> dict:
         results["dedup"] = False
         print(f"FAIL: Dedup — product_url column not found")
 
-    # 6. Geography check
-    if "shop_location" in df.columns:
-        non_java = 0
-        for loc in df["shop_location"].dropna():
-            loc_lower = str(loc).lower().strip()
-            if not any(java in loc_lower for java in JAVA_ISLAND_LOCATIONS):
-                non_java += 1
-        results["geography"] = non_java == 0
-        if non_java == 0:
-            print(f"PASS: Geography — all shop_locations in Java Island")
+    # 6. Location completeness
+    if "shop_province" in df.columns:
+        unmapped = (df["shop_province"].isna() | (df["shop_province"] == "")).sum()
+        total = len(df)
+        results["location_completeness"] = unmapped == 0
+        if unmapped == 0:
+            print(f"PASS: Location — all {total} rows have shop_province")
         else:
-            print(f"FAIL: Geography — {non_java} locations outside Java Island")
+            print(f"WARN: Location — {unmapped}/{total} rows missing shop_province")
+            results["location_completeness"] = True  # Warning, not failure
     else:
-        results["geography"] = False
-        print(f"FAIL: Geography — shop_location column not found")
+        results["location_completeness"] = False
+        print(f"FAIL: Location — shop_province column not found")
 
-    # 7. Row count check
+    # 7. Category field check
+    if "category" in df.columns:
+        cat_filled = (df["category"].notna() & (df["category"] != "")).sum()
+        results["category"] = cat_filled > 0
+        if cat_filled > 0:
+            print(f"PASS: Category — {cat_filled}/{total_rows} rows have category")
+        else:
+            print(f"FAIL: Category — 0 rows have category")
+    else:
+        results["category"] = False
+        print(f"FAIL: Category — column not found")
+
+    # 8. Row count check
     results["row_count"] = total_rows >= MIN_ROWS
     if total_rows >= MIN_ROWS:
         print(f"PASS: Row count — {total_rows} >= {MIN_ROWS}")

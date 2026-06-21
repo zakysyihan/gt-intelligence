@@ -117,7 +117,7 @@ This is not optional. Every task gets its own branch, automatically. The human n
 3. **Auto-merge when done.** After finishing all work, merge your branch to main: `git checkout main && git merge feat/<task-name> && git push origin main`.
 4. **Deploy only from main.** After merging, deploy from `main`. Never from a feature branch.
 5. **Sequential deploys.** If multiple sessions deploy, merge one at a time (merge → deploy → merge → deploy).
-6. **Each session reads SPEC.md but doesn't modify it.** Only Kilo modifies SPEC.md, AGENTS.md, HISTORY.md, research/.
+6. **Each session reads SPEC.md and updates docs as needed.** Every Claude session must update any docs affected by their changes (SPEC.md schema, ARCHITECTURE.md, CLAUDE.md, etc.) before merging to main. Docs and code ship together.
 7. **Every branch must be merged to main before session ends.** Every task we give Claude is finished and deliverable. No orphan branches. Merge to main, push, done.
 
 ### What Kilo Does
