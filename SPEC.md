@@ -273,86 +273,108 @@ The MDL encodes business logic so the LLM understands what data means:
 ### User Flow
 
 ```
-1. User opens system
-2. Sees predefined dashboard (summary metrics + charts)
-3. Clicks "Chat" to ask deeper questions
-4. Agent answers with data, charts, follow-up suggestions
-5. User can start new chat for different analysis
+1. User opens system → sees dashboard (8 widgets + metrics)
+2. Clicks "Buka Chat" to open analyst side panel
+3. Agent answers with multi-step reasoning, data, charts, insights
+4. Agent can ask clarifying questions mid-conversation
+5. User can create/switch between analysis sessions
+6. Dynamic session titles auto-generated from conversation
 ```
 
 ### Layout
 
 ```
-┌──────────────────────────────────────────────────┐
-│  GT Intelligence — Market Analyst                │
-├──────────────┬───────────────────────────────────┤
-│              │                                   │
-│  Dashboard   │  Chat                             │
-│  (left/main) │  (right/drawer)                   │
-│              │                                   │
-│  ┌────────┐  │  ┌─────────────────────────────┐ │
-│  │ Summary│  │  │ Ask: "Top produk cokelat?"  │ │
-│  │ Cards  │  │  │                             │ │
-│  └────────┘  │  │ Agent: [SQL] → [table]      │ │
-│  ┌────────┐  │  │         → [chart]           │ │
-│  │ Charts │  │  │         → [insight]         │ │
-│  │ (3-4)  │  │  │                             │ │
-│  └────────┘  │  │ Follow-up: "Compare with    │ │
-│              │  │ Bandung?"                    │ │
-│              │  └─────────────────────────────┘ │
-├──────────────┴───────────────────────────────────┤
-│  [Dashboard]  [New Chat]  [Chat History]         │
-└──────────────────────────────────────────────────┘
+┌──────────────────────────────────────────┬──────────────────┐
+│  GT Intelligence — Market Analyst        │  [💬 Tutup Chat] │
+├──────────────────────────────────────────┼──────────────────┤
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐       │  🤖 Analis Pasar │
+│  │ 📦  │ │ 🏆  │ │ 🏪  │ │ 📍  │       │  Sesi: [▼] [➕]  │
+│  │672  │ │snack│ │374  │ │32   │       │                  │
+│  └─────┘ └─────┘ └─────┘ └─────┘       │  ⚡ Quick Actions │
+│                                          │  [🏆] [📈] [💰]  │
+│  📊 Demand  │  💰 Harga                  │  [🗺️] [📊] [🍫]  │
+│  🗺️ Top 10 Kota                         │                  │
+│  📈 Quadrant │ 💵 Revenue │ 🍫 Specs     │  💬 chat history  │
+└──────────────────────────────────────────┴──────────────────┘
 ```
 
-### Dashboard (Predefined Layout, Live SQL Data)
+### Dashboard (8 Widgets)
 
-The dashboard loads on open. Layout is fixed (4 metric cards + 3 charts), but every element queries live data from SQLite on each load.
-**Not customizable via UI** — data team modifies code to change layout. Metrics always reflect current data.
+The dashboard loads on open with 4 metric cards + 4 chart rows (8 widgets total).
+Every element queries live data from DuckDB on each load.
 
-| Element | What It Shows | Data Source |
-|---------|--------------|-------------|
-| Metric card | Total products scraped | `COUNT(*)` |
-| Metric card | Top subcategory by demand | `GROUP BY subcategory` |
-| Metric card | Average price | `AVG(price)` |
-| Metric card | Products on Java Island | `WHERE location LIKE '%Jawa%'` |
-| Chart | Subcategory demand ranking | Bar chart |
-| Chart | Price distribution | Histogram |
-| Chart | Geographic distribution | Bar chart by city |
+| # | Widget | What It Shows | Data Source |
+|---|--------|--------------|-------------|
+| 1 | Market Snapshot | Total products, top subcategory, total shops, total cities | `COUNT(*)`, `GROUP BY` |
+| 2 | Subcategory Comparison | Demand ranking by subcategory (bar chart) | `SUM(sold_count) GROUP BY subcategory` |
+| 3 | Price Sweet Spot | Price distribution histogram | `CASE WHEN price...` |
+| 4 | Top 10 Cities | Geographic distribution (horizontal bar) | `GROUP BY shop_location` |
+| 5 | Product Spec Signals | Top flavor/weight per subcategory (table) | `GROUP BY subcategory, flavor, weight` |
+| 6 | Trend Analysis | Google Trends interest over 12 months (line chart) | pytrends API (cached) |
+| 7 | Opportunity Quadrant | Demand vs Quality scatter (4 quadrants) | `sold_count vs rating` scatter |
+| 8 | Revenue Proxy | Price vs Demand scatter | `price vs sold_count` scatter |
+
+**Opportunity Quadrant Interpretation (from brand owner / product creator perspective):**
+
+| Quadrant | Signal | Action |
+|----------|--------|--------|
+| High Demand + High Quality | ⭐ Winning Formula | Study and replicate |
+| Low Demand + High Quality | 💎 Hidden Gem (Opportunity) | Develop and promote |
+| High Demand + Low Quality | ⚠️ Volume Only | Improve quality |
+| Low Demand + Low Quality | ❌ Avoid | Don't enter |
+
 **Quick action buttons (map to analysis categories):**
 
 | Button | Category | Predefined Prompt |
 |--------|----------|------------------|
-| Produk Terlaris | Cat 1: Demand | "Produk mana yang paling banyak terjual bulan ini? Top 10 berdasarkan sold_count" |
-| Tren Demand | Cat 1: Demand | "Bagaimana tren penjualan 5 produk terlaris dalam beberapa waktu terakhir?" |
-| Estimasi Pendapatan | Cat 2: Profitability | "Produk mana yang menghasilkan estimasi pendapatan tertinggi (harga × terjual)?" |
-| Analisis Regional | Cat 3: Geographic | "Bagaimana distribusi penjualan across kota di Jawa? Kota mana paling banyak jual?" |
-| Tren Waktu | Cat 4: Temporal | "Bagaimana pola penjualan mingguan? Apakah ada tren naik atau turun?" |
-| Sinyal Sukses Produk | Cat 5: Product Dev | "Apa spesifikasi produk (rasa, berat, varian) yang paling laris di tiap subkategori? Produk seperti apa yang sebaiknya kami kembangkan?" |
+| 🏆 Terlaris | Cat 1: Demand | Top 10 produk terlaris bulan ini |
+| 📈 Tren | Cat 1: Demand | Tren penjualan per subkategori |
+| 💰 Pendapatan | Cat 2: Profitability | Estimasi pendapatan tertinggi (harga × terjual) |
+| 🗺️ Regional | Cat 3: Geographic | Distribusi penjualan per kota di Jawa |
+| 📊 Harga | Cat 2: Profitability | Harga rata-rata per subkategori |
+| 🍫 Specs | Cat 5: Product Dev | Spesifikasi produk paling laris (rasa, berat) |
 
-### Chat (WrenAI + Chainlit)
+### Chat (Agentic AI)
 
-- Each conversation is a separate analysis session
-- Agent has WrenAI tools: query data, generate charts, suggest follow-up
-- All answers grounded via MDL semantic layer
+- Multi-step ReAct (Reason-Act-Observe) loop — not just single-shot SQL
+- Agent can ask clarifying questions mid-conversation
+- Agent can chain multiple SQL queries in one answer
+- Agent can explore data before answering (discovery queries)
+- Dynamic session titles auto-generated by LLM
+- All answers grounded in data via MDL semantic layer
 - Follow-up suggestions after each answer
+- Unanswerable questions handled gracefully (profit margins, buyer data, etc.)
 
-### Interface Tiers (Target: "Excellent")
+**Agent Response Format:**
+```
+[SQL Query] → [Data Table] → [Insight] → [Chart] → [Follow-up Suggestions]
+```
 
-**Minimum (must have):**
+**Agentic Capabilities:**
+- Intent classification: direct_answer, needs_exploration, needs_clarification, chain_queries
+- Max 3 iterations per question (prevent infinite loops)
+- SQL error retry with auto-fix
+- Intermediate steps recorded for transparency
+
+### Interface Tiers (Target: "Excellent") ✅ ACHIEVED
+
+**Minimum (must have):** ✅
 - Dashboard with summary metrics
 - Chat prompt box
 - Clear LLM output with data reference
 
-**Better (target):**
+**Better (target):** ✅
 - Suggested questions as quick action buttons
 - Data/metric references in answers
 - Error handling for unanswerable questions
 
-**Excellent (target):**
-- Agent queries data via WrenAI
-- Generates charts inline
+**Excellent (target):** ✅
+- Agentic AI with multi-step reasoning
+- Generates charts inline (Plotly)
 - Suggests follow-up analysis
+- Dynamic session titles
+- Opportunity quadrant analysis
+- Google Trends integration
 
 ---
 
@@ -364,9 +386,35 @@ The dashboard loads on open. Layout is fixed (4 metric cards + 3 charts), but ev
 | Data storage | SQLite | File-based, no server needed |
 | Data processing | Pandas | Industry standard, easy to explain |
 | Spec parsing | DeepSeek v4 Flash (SumoPod AI) | LLM extracts flavor/weight/variant from product names (80%+ accuracy) |
-| Analytics + LLM Agent | WrenAI (text-to-SQL + semantic layer) | Business-aware agent, MDL for context |
-| Interface | Chainlit | Agent-native chat UI, conversational |
-| Containerization | Docker + Docker Compose | Single container for all services |
+| Analytics + LLM Agent | OpenAI gpt-4o-mini + ReAct loop | Multi-step reasoning, grounded in MDL semantic layer |
+| Custom UI | FastAPI + HTML/CSS/JS | Production-smooth, modern design |
+| Backup UI | Streamlit | Dashboard-first layout, backup/prototype |
+| Google Trends | pytrends | Search interest data (24hr cache, rate-limit aware) |
+| Containerization | Docker + Docker Compose | Dual-service container (FastAPI + Streamlit) |
+| Deployment | Single VPS (43.133.140.154) | All services on one machine |
+| Testing | Python assert + pytest | Simple verification |
+
+### Data Limitations
+
+| Field | Status | Impact |
+|-------|--------|--------|
+| review_count | ⚠️ ALL ZERO (tokopaedi doesn't expose) | Cannot use for quality signals |
+| rating | ✅ 616/672 have rating > 0 | Used as quality signal |
+| flavor/weight/variant | ⚠️ 40-65% null | Best-effort extraction from titles |
+| Google Trends | ⚠️ search interest ≠ actual sales | Supplementary signal only |
+
+### MVP vs Production
+
+| Concern | MVP (This Project) | Production (Future) |
+|---------|-------------------|---------------------|
+| Database | SQLite (file-based) | PostgreSQL (concurrent access, millions of rows) |
+| UI | Custom HTML/CSS/JS + Streamlit backup | React/Vue SPA with auth |
+| LLM Agent | OpenAI gpt-4o-mini + ReAct | Self-hosted LLM + RAG pipeline |
+| Deployment | Single VPS, Docker Compose | Kubernetes, load balancer |
+| Scraping | Manual run, tokopaedi mobile API | Scheduled (cron/Airflow), proxy rotation |
+| Google Trends | pytrends (unofficial) | Official API or SerpAPI |
+| Authentication | None (single user) | Multi-user auth, RBAC |
+| Data pipeline | Batch (scrape → clean → serve) | Streaming (real-time updates) |
 | Deployment | Single VPS (43.133.140.154) | All services on one machine |
 | Testing | Python assert + pytest | Simple verification |
 
