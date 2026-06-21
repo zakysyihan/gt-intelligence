@@ -57,15 +57,20 @@ The business team needs to answer 5 categories of analysis. Each category maps t
 | 3.3 | Which cities are underserved (high demand signals, few sellers)? | shop_location, sold_count |
 | 3.4 | Does pricing vary significantly by region? | price, shop_location, subcategory |
 
-### Category 4: Temporal Pattern
+### Category 4: Temporal Pattern & Trends
 
-> "How does demand change over time?"
+> "How does demand change over time? What's rising, what's declining?"
 
-| # | Business Question | What We Need |
-|---|-------------------|-------------|
-| 4.1 | How do weekly sales patterns change? | sold_count, timestamp |
-| 4.2 | Are there seasonal signals in the collection period? | sold_count, timestamp, subcategory |
-| 4.3 | Which products gained or lost traction fastest? | sold_count, timestamp, product_name |
+| # | Business Question | What We Need | Source |
+|---|-------------------|-------------|--------|
+| 4.1 | Which subcategories are trending up/down? | search interest over 12 months | **Google Trends API** |
+| 4.2 | Are there seasonal signals? | monthly search patterns | **Google Trends API** |
+| 4.3 | Which subcategory is rising fastest? | month-over-month change | **Google Trends API** |
+| 4.4 | How do sold counts compare across subcategories? | sold_count by subcategory | Tokopedia data |
+
+**Data source note:** Our marketplace data is scraped at ONE point in time (Jun 20, 2026). We cannot show real sales trends from Tokopedia data alone. Google Trends provides search interest trends (past 12 months) as a proxy for demand trajectory. This is a limitation — search interest ≠ actual sales — but it's the best trend signal available without periodic re-scraping.
+
+**Limitation:** Google Trends shows search interest, not actual purchase data. Correlation with real sales is approximate. A production system would scrape periodically (weekly/monthly) to build actual sales trend data.
 
 ### Category 5: Product Success Signals (Product Development)
 
@@ -73,10 +78,52 @@ The business team needs to answer 5 categories of analysis. Each category maps t
 
 | # | Business Question | What We Need |
 |---|-------------------|-------------|
-| 5.1 | What product attributes correlate with high sales? | price, rating, review_count, sold_count, subcategory |
+| 5.1 | What product attributes correlate with high sales? | price, rating, sold_count, subcategory |
 | 5.2 | Which underserved niches have demand but low seller count? | subcategory, sold_count, shop_name |
 | 5.3 | What flavor/weight/variant sells best per subcategory? | parsed from product_name (flavor, weight, variant) |
 | 5.4 | What's the optimal product spec to enter a winning subcategory? | all fields above |
+| 5.5 | **Quadrant: Demand vs Quality** — where is the opportunity? | sold_count, rating |
+
+### Quadrant Analysis: Demand vs Quality (Category 5.5)
+
+The quadrant maps each product on two axes:
+- **X-axis:** Rating (customer satisfaction, 0-5)
+- **Y-axis:** Sold count (demand volume)
+
+```
+                    HIGH DEMAND
+                        │
+     QUALITY GAP        │         WINNING FORMULA
+     (people buy it     │     (people buy it AND
+      but unhappy)      │      love it)
+     → OPPORTUNITY:     │     → STUDY: what specs
+       make better      │       do they share?
+       product here     │
+  ──────────────────────┼──────────────────────
+                        │
+     FAILING            │         HIDDEN GEM
+     (nobody buys,      │     (nobody buys but
+      nobody likes)     │      those who do love it)
+     → AVOID            │     → NICHE: loyal
+                        │       customers, scale?
+                    LOW DEMAND
+     ◄── LOW RATING      HIGH RATING ──►
+```
+
+**Interpretation for brand owner / product creator:**
+- **Quality Gap (high demand, low rating):** Customers buy this product but aren't satisfied. Opportunity to develop a better version of a product that already has proven demand.
+- **Winning Formula (high demand, high rating):** Study the best-selling, highest-rated products. What flavors, weights, price points do they share? Replicate the formula.
+- **Hidden Gem (low demand, high rating):** Small market but strong product with loyal customers. Can we scale distribution?
+- **Failing (low demand, low rating):** Avoid — no demand, no satisfaction.
+
+**Limitation — what would make this quadrant stronger:**
+This quadrant uses `rating` (average score) and `sold_count` (demand volume) as proxies. A richer analysis would incorporate:
+- **Review text quality** — Are reviews detailed and passionate (indicating genuine engagement) or just "ok" one-liners?
+- **Review sentiment** — Positive vs negative review ratio
+- **Repeat purchase signals** — Are the same buyers coming back?
+- **Review-to-sold ratio** — Higher ratio = more engaged customer base (niche with passionate buyers vs mass market commodity)
+
+These metrics are not available from Tokopedia's search API (review_count = 0 for all products). A production version would scrape individual product pages for review data, or use Tokopedia's seller API for deeper engagement metrics.
 
 **Note on Category 5:** Flavor, weight, and variant data are parsed from product titles (e.g., "Chitato Sapi Panggang 68g" → flavor: sapi panggang, weight: 68g). Extraction accuracy is a known limitation — not all titles contain structured specs.
 
@@ -361,11 +408,12 @@ The dashboard loads on open. Layout is fixed (4 metric cards + 3 charts), but ev
 | Layer | Tool | Why |
 |-------|------|-----|
 | Scraping | Python + `tokopaedi` (PyPI) | Mobile API spoofing bypasses Akamai; actively maintained |
+| Trend data | Google Trends API (`pytrends`) | Free search interest trends (past 12 months) as demand proxy |
 | Data storage | SQLite | File-based, no server needed |
 | Data processing | Pandas | Industry standard, easy to explain |
-| Spec parsing | DeepSeek v4 Flash (SumoPod AI) | LLM extracts flavor/weight/variant from product names (80%+ accuracy) |
-| Analytics + LLM Agent | WrenAI (text-to-SQL + semantic layer) | Business-aware agent, MDL for context |
-| Interface | Chainlit | Agent-native chat UI, conversational |
+| Spec parsing | DeepSeek v4 Flash (SumoPod AI) | LLM extracts flavor/weight/variant from product names |
+| Analytics + LLM Agent | OpenAI-compatible API via SumoPod DeepSeek | Text-to-SQL agent with business context |
+| Interface | Streamlit (dashboard-first + collapsible side chat) | Dashboard main view, analyst agent in side panel |
 | Containerization | Docker + Docker Compose | Single container for all services |
 | Deployment | Single VPS (43.133.140.154) | All services on one machine |
 | Testing | Python assert + pytest | Simple verification |
