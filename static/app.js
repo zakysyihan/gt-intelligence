@@ -6,15 +6,93 @@
 const API = '';  // Same origin
 let currentSession = null;
 let chatOpen = false;
+let activeFilters = { subcategories: [], province: '' };
 
 // ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadDashboard();
+    loadFilters().then(() => loadDashboard());
     loadSessions();
 });
+
+// ---------------------------------------------------------------------------
+// Filters
+// ---------------------------------------------------------------------------
+
+async function loadFilters() {
+    try {
+        const res = await fetch(`${API}/api/dashboard/filters`);
+        const data = await res.json();
+        renderMultiselect(data.subcategories || []);
+        const sel = document.getElementById('filter-province');
+        (data.provinces || []).forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p;
+            sel.appendChild(opt);
+        });
+    } catch (err) {
+        console.error('Failed to load filters:', err);
+    }
+}
+
+function renderMultiselect(options) {
+    const container = document.getElementById('filter-subcategory');
+    container.innerHTML = `
+        <button class="multiselect-btn" onclick="this.nextElementSibling.classList.toggle('open')">
+            <span id="ms-label">Semua</span> <span>▾</span>
+        </button>
+        <div class="multiselect-dropdown" id="ms-dropdown">
+            ${options.map(o => `
+                <label class="multiselect-option">
+                    <input type="checkbox" value="${o}" onchange="updateMultiselect()"> ${o}
+                </label>
+            `).join('')}
+        </div>
+    `;
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+        if (!container.contains(e.target)) {
+            container.querySelector('.multiselect-dropdown')?.classList.remove('open');
+        }
+    });
+}
+
+function updateMultiselect() {
+    const checkboxes = document.querySelectorAll('#ms-dropdown input[type="checkbox"]');
+    const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+    const label = document.getElementById('ms-label');
+    label.textContent = selected.length ? selected.join(', ') : 'Semua';
+    activeFilters.subcategories = selected;
+    applyFilters();
+}
+
+function applyFilters() {
+    const province = document.getElementById('filter-province').value;
+    activeFilters.province = province;
+    loadDashboard();
+}
+
+function resetFilters() {
+    activeFilters = { subcategories: [], province: '' };
+    document.querySelectorAll('#ms-dropdown input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.getElementById('ms-label').textContent = 'Semua';
+    document.getElementById('filter-province').value = '';
+    loadDashboard();
+}
+
+function getFilterParams() {
+    const params = new URLSearchParams();
+    if (activeFilters.subcategories.length) {
+        params.set('subcategories', activeFilters.subcategories.join(','));
+    }
+    if (activeFilters.province) {
+        params.set('province', activeFilters.province);
+    }
+    return params.toString();
+}
 
 // ---------------------------------------------------------------------------
 // Dashboard
@@ -25,11 +103,13 @@ async function loadDashboard() {
     const content = document.getElementById('dashboard-content');
 
     try {
+        const fp = getFilterParams();
+        const qs = fp ? `?${fp}` : '';
         const [dashRes, quadRes, storeRes, geoRes] = await Promise.all([
-            fetch(`${API}/api/dashboard`).then(r => r.json()),
-            fetch(`${API}/api/dashboard/quadrant`).then(r => r.json()),
-            fetch(`${API}/api/dashboard/quadrant-store`).then(r => r.json()),
-            fetch(`${API}/api/dashboard/geo-map`).then(r => r.json()),
+            fetch(`${API}/api/dashboard${qs}`).then(r => r.json()),
+            fetch(`${API}/api/dashboard/quadrant${qs}`).then(r => r.json()),
+            fetch(`${API}/api/dashboard/quadrant-store${qs}`).then(r => r.json()),
+            fetch(`${API}/api/dashboard/geo-map${qs}`).then(r => r.json()),
         ]);
 
         renderMetrics(dashRes);

@@ -34,6 +34,21 @@
 
             <!-- Dashboard content (hidden until loaded) -->
             <div class="dashboard-content" id="dashboard-content" style="display:none;">
+                <!-- Filters -->
+                <div class="filters-bar" id="filters-bar">
+                    <div class="filter-group">
+                        <label class="filter-label">📂 Subkategori</label>
+                        <div id="filter-subcategory" class="multiselect"></div>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">📍 Kota / Kabupaten</label>
+                        <select id="filter-province" class="filter-select" onchange="applyFilters()">
+                            <option value="">Semua Kota</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-small" onclick="resetFilters()">↺ Reset</button>
+                </div>
+
                 <!-- Metric cards -->
                 <div class="metrics-grid" id="metrics-grid"></div>
 

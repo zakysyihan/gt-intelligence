@@ -112,31 +112,110 @@ async def serve_index():
 # API routes
 # ---------------------------------------------------------------------------
 
-@app.get("/api/dashboard")
-async def get_dashboard():
-    """Return dashboard data (metrics + chart data)."""
+def _build_filter_clause(subcategories: str = None, province: str = None) -> tuple[str, list]:
+    """Build SQL WHERE clause from filter params. Returns (clause, params)."""
+    conditions = []
+    params = []
+    if subcategories:
+        cats = [c.strip() for c in subcategories.split(",") if c.strip()]
+        if cats:
+            placeholders = ",".join(["?" for _ in cats])
+            conditions.append(f"subcategory IN ({placeholders})")
+            params.extend(cats)
+    if province:
+        # Filter by shop_location containing the province name
+        conditions.append("shop_location LIKE ?")
+        params.append(f"%{province}%")
+    if conditions:
+        return "WHERE " + " AND ".join(conditions), params
+    return "", params
+
+
+@app.get("/api/dashboard/filters")
+async def get_filter_options():
+    """Return available filter values (subcategories, provinces)."""
     agent = get_agent()
-    dash = agent.get_dashboard_data()
-    # Convert tuples to lists for JSON serialization
-    for key in ["subcategory_demand", "price_demand", "geo_distribution"]:
-        if key in dash and dash[key]:
-            dash[key] = [list(r) for r in dash[key]]
-    # Convert top_subcategory tuple
-    if "top_subcategory" in dash and dash["top_subcategory"]:
-        dash["top_subcategory"] = list(dash["top_subcategory"])
-    # Convert harga_diminati tuple
-    if "harga_diminati" in dash and dash["harga_diminati"]:
-        dash["harga_diminati"] = list(dash["harga_diminati"])
-    return dash
+    subcats = [r[0] for r in agent.con.execute(
+        "SELECT DISTINCT subcategory FROM products ORDER BY subcategory"
+    ).fetchall()]
+    provinces = [r[0] for r in agent.con.execute(
+        "SELECT DISTINCT shop_location FROM products ORDER BY shop_location"
+    ).fetchall()]
+    return {"subcategories": subcats, "provinces": provinces}
+
+
+@app.get("/api/dashboard")
+async def get_dashboard(subcategories: str = None, province: str = None):
+    """Return dashboard data (metrics + chart data), optionally filtered."""
+    agent = get_agent()
+    where, params = _build_filter_clause(subcategories, province)
+
+    def q(sql):
+        return agent.con.execute(sql, params).fetchall()
+
+    def q1(sql):
+        return agent.con.execute(sql, params).fetchone()
+
+    total = q1("SELECT COUNT(*) FROM products " + where)[0]
+    top_sub = q1(
+        f"SELECT subcategory, SUM(sold_count) as total FROM products {where} GROUP BY subcategory ORDER BY total DESC LIMIT 1"
+    )
+    harga = q1(
+        f"""SELECT price_range, total_sold FROM (
+            SELECT CASE
+                WHEN price < 5000 THEN '< 5K'
+                WHEN price < 15000 THEN '5K-15K'
+                WHEN price < 30000 THEN '15K-30K'
+                WHEN price < 75000 THEN '30K-75K'
+                WHEN price < 150000 THEN '75K-150K'
+                ELSE '> 150K'
+            END as price_range, SUM(sold_count) as total_sold
+            FROM products {where} GROUP BY price_range
+        ) ORDER BY total_sold DESC LIMIT 1"""
+    )
+    total_shops = q1("SELECT COUNT(DISTINCT shop_name) FROM products " + where)[0]
+    total_cities = q1("SELECT COUNT(DISTINCT shop_location) FROM products " + where)[0]
+
+    subcat_demand = [list(r) for r in q(
+        "SELECT subcategory, SUM(sold_count), COUNT(*) FROM products " + where + " GROUP BY subcategory ORDER BY SUM(sold_count) DESC"
+    )]
+    price_demand = [list(r) for r in q(
+        """SELECT CASE
+            WHEN price < 5000 THEN '< 5K'
+            WHEN price < 15000 THEN '5K-15K'
+            WHEN price < 30000 THEN '15K-30K'
+            WHEN price < 75000 THEN '30K-75K'
+            WHEN price < 150000 THEN '75K-150K'
+            ELSE '> 150K'
+        END as price_range, SUM(sold_count), COUNT(*)
+        FROM products """ + where + """ GROUP BY price_range ORDER BY MIN(price)"""
+    )]
+    geo_dist = [list(r) for r in q(
+        "SELECT shop_location, COUNT(*), SUM(sold_count) FROM products " + where + " GROUP BY shop_location ORDER BY COUNT(*) DESC LIMIT 15"
+    )]
+
+    return {
+        "total_products": total,
+        "top_subcategory": list(top_sub) if top_sub else ["-", 0],
+        "harga_diminati": list(harga) if harga else ["-", 0],
+        "total_shops": total_shops,
+        "total_cities": total_cities,
+        "subcategory_demand": subcat_demand,
+        "price_demand": price_demand,
+        "geo_distribution": geo_dist,
+    }
 
 
 @app.get("/api/dashboard/quadrant")
-async def get_quadrant_data():
+async def get_quadrant_data(subcategories: str = None, province: str = None):
     """Return per-product data for the opportunity quadrant (demand vs rating)."""
     agent = get_agent()
+    where, params = _build_filter_clause(subcategories, province)
+    extra = " AND rating > 0" if where else "WHERE rating > 0"
     rows = agent.con.execute(
         "SELECT product_name, subcategory, sold_count, rating, price "
-        "FROM products WHERE rating > 0 ORDER BY sold_count DESC LIMIT 200"
+        "FROM products " + where + extra + " ORDER BY sold_count DESC LIMIT 200",
+        params
     ).fetchall()
     return {
         "products": [
@@ -147,15 +226,15 @@ async def get_quadrant_data():
 
 
 @app.get("/api/dashboard/quadrant-store")
-async def get_quadrant_store_data():
+async def get_quadrant_store_data(subcategories: str = None, province: str = None):
     """Return per-product data for distribution quadrant (demand vs store_count).
 
     Normalizes product names to identify the same product across sellers.
     store_count = number of distinct sellers listing the same product.
     """
     agent = get_agent()
-    # Normalize product names: lowercase, remove seller-specific prefixes/suffixes,
-    # strip common markers like **, brackets, seller names
+    where, params = _build_filter_clause(subcategories, province)
+    extra = " AND rating > 0" if where else "WHERE rating > 0"
     rows = agent.con.execute("""
         SELECT
             LOWER(TRIM(
@@ -172,12 +251,12 @@ async def get_quadrant_store_data():
             COUNT(DISTINCT shop_name) as store_count,
             AVG(rating) as avg_rating
         FROM products
-        WHERE rating > 0
+        """ + where + extra + """
         GROUP BY normalized_name, subcategory
         HAVING store_count >= 1
         ORDER BY total_sold DESC
         LIMIT 200
-    """).fetchall()
+    """, params).fetchall()
     return {
         "products": [
             {"name": r[0], "subcategory": r[1], "sold_count": r[2], "store_count": r[3], "rating": round(r[4], 2)}
@@ -187,9 +266,16 @@ async def get_quadrant_store_data():
 
 
 @app.get("/api/dashboard/geo-map")
-async def get_geo_map():
+async def get_geo_map(subcategories: str = None, province: str = None):
     """Return geo data with lat/lng for scatter_mapbox visualization."""
-    # Hardcoded lat/lng for Java Island cities
+    agent = get_agent()
+    where, params = _build_filter_clause(subcategories, province)
+    rows = agent.con.execute(
+        "SELECT shop_location, COUNT(*) as seller_count, SUM(sold_count) as total_sold "
+        "FROM products " + where + " GROUP BY shop_location ORDER BY seller_count DESC",
+        params
+    ).fetchall()
+
     CITY_COORDS = {
         "Surabaya": (-7.2575, 112.7521),
         "Kab. Bandung": (-6.9175, 107.6191),
