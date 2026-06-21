@@ -125,7 +125,7 @@ PROVINCE_CITIES = {
 }
 
 
-def _build_filter_clause(subcategories: str = None, province: str = None) -> tuple[str, list]:
+def _build_filter_clause(subcategories: str = None, province: str = None, city: str = None) -> tuple[str, list]:
     """Build SQL WHERE clause from filter params. Returns (clause, params)."""
     conditions = []
     params = []
@@ -136,10 +136,20 @@ def _build_filter_clause(subcategories: str = None, province: str = None) -> tup
             conditions.append(f"subcategory IN ({placeholders})")
             params.extend(cats)
     if province:
-        cities = PROVINCE_CITIES.get(province, [province])
-        placeholders = ",".join(["?" for _ in cities])
-        conditions.append(f"shop_location IN ({placeholders})")
-        params.extend(cities)
+        provs = [p.strip() for p in province.split(",") if p.strip()]
+        all_cities = []
+        for p in provs:
+            all_cities.extend(PROVINCE_CITIES.get(p, [p]))
+        if all_cities:
+            placeholders = ",".join(["?" for _ in all_cities])
+            conditions.append(f"shop_location IN ({placeholders})")
+            params.extend(all_cities)
+    if city:
+        cities = [c.strip() for c in city.split(",") if c.strip()]
+        if cities:
+            placeholders = ",".join(["?" for _ in cities])
+            conditions.append(f"shop_location IN ({placeholders})")
+            params.extend(cities)
     if conditions:
         return "WHERE " + " AND ".join(conditions), params
     return "", params
@@ -147,21 +157,32 @@ def _build_filter_clause(subcategories: str = None, province: str = None) -> tup
 
 @app.get("/api/dashboard/filters")
 async def get_filter_options():
-    """Return available filter values (subcategories, provinces)."""
+    """Return available filter values (subcategories, provinces, citiesByProvince)."""
     agent = get_agent()
     subcats = [r[0] for r in agent.con.execute(
         "SELECT DISTINCT subcategory FROM products ORDER BY subcategory"
     ).fetchall()]
-    # Return province names (from PROVINCE_CITIES mapping)
-    provinces = sorted(PROVINCE_CITIES.keys())
-    return {"subcategories": subcats, "provinces": provinces}
+
+    # Get actual cities in DB per province
+    db_cities = set(r[0] for r in agent.con.execute(
+        "SELECT DISTINCT shop_location FROM products"
+    ).fetchall())
+
+    cities_by_province = {}
+    for prov, cities in PROVINCE_CITIES.items():
+        matched = [c for c in cities if c in db_cities]
+        if matched:
+            cities_by_province[prov] = sorted(matched)
+
+    provinces = sorted(cities_by_province.keys())
+    return {"subcategories": subcats, "provinces": provinces, "citiesByProvince": cities_by_province}
 
 
 @app.get("/api/dashboard")
-async def get_dashboard(subcategories: str = None, province: str = None):
+async def get_dashboard(subcategories: str = None, province: str = None, city: str = None):
     """Return dashboard data (metrics + chart data), optionally filtered."""
     agent = get_agent()
-    where, params = _build_filter_clause(subcategories, province)
+    where, params = _build_filter_clause(subcategories, province, city)
 
     def q(sql):
         return agent.con.execute(sql, params).fetchall()
@@ -234,10 +255,10 @@ async def get_dashboard(subcategories: str = None, province: str = None):
 
 
 @app.get("/api/dashboard/quadrant")
-async def get_quadrant_data(subcategories: str = None, province: str = None):
+async def get_quadrant_data(subcategories: str = None, province: str = None, city: str = None):
     """Return per-product data for the opportunity quadrant (demand vs rating)."""
     agent = get_agent()
-    where, params = _build_filter_clause(subcategories, province)
+    where, params = _build_filter_clause(subcategories, province, city)
     extra = " AND rating > 0" if where else "WHERE rating > 0"
     rows = agent.con.execute(
         "SELECT product_name, subcategory, sold_count, rating, price "
@@ -253,14 +274,10 @@ async def get_quadrant_data(subcategories: str = None, province: str = None):
 
 
 @app.get("/api/dashboard/quadrant-store")
-async def get_quadrant_store_data(subcategories: str = None, province: str = None):
-    """Return per-product data for distribution quadrant (demand vs store_count).
-
-    Normalizes product names to identify the same product across sellers.
-    store_count = number of distinct sellers listing the same product.
-    """
+async def get_quadrant_store_data(subcategories: str = None, province: str = None, city: str = None):
+    """Return per-product data for distribution quadrant (demand vs store_count)."""
     agent = get_agent()
-    where, params = _build_filter_clause(subcategories, province)
+    where, params = _build_filter_clause(subcategories, province, city)
     extra = " AND rating > 0" if where else "WHERE rating > 0"
     rows = agent.con.execute("""
         SELECT
@@ -293,10 +310,10 @@ async def get_quadrant_store_data(subcategories: str = None, province: str = Non
 
 
 @app.get("/api/dashboard/geo-map")
-async def get_geo_map(subcategories: str = None, province: str = None):
+async def get_geo_map(subcategories: str = None, province: str = None, city: str = None):
     """Return geo data with lat/lng for mapbox visualization."""
     agent = get_agent()
-    where, params = _build_filter_clause(subcategories, province)
+    where, params = _build_filter_clause(subcategories, province, city)
     rows = agent.con.execute(
         "SELECT shop_location, COUNT(*) as seller_count, SUM(sold_count) as total_sold "
         "FROM products " + where + " GROUP BY shop_location ORDER BY seller_count DESC",

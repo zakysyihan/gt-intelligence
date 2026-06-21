@@ -6,7 +6,8 @@
 const API = '';  // Same origin
 let currentSession = null;
 let chatOpen = false;
-let activeFilters = { subcategories: [], province: '' };
+let activeFilters = { subcategories: [], provinces: [], cities: [] };
+let filterData = { subcategories: [], provinces: [], citiesByProvince: {} };
 
 // ---------------------------------------------------------------------------
 // Init
@@ -25,36 +26,49 @@ async function loadFilters() {
     try {
         const res = await fetch(`${API}/api/dashboard/filters`);
         const data = await res.json();
-        renderMultiselect(data.subcategories || []);
-        const sel = document.getElementById('filter-province');
-        if (sel) {
-            (data.provinces || []).forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p;
-                opt.textContent = p;
-                sel.appendChild(opt);
-            });
-        }
+        filterData = data;
+
+        // Render subcategory multiselect
+        renderMultiselect('filter-subcategory', 'ms-subcat', data.subcategories || [], (selected) => {
+            activeFilters.subcategories = selected;
+            applyFilters();
+        });
+
+        // Render province multiselect
+        renderMultiselect('filter-province', 'ms-province', data.provinces || [], (selected) => {
+            activeFilters.provinces = selected;
+            updateCityOptions();
+            activeFilters.cities = [];
+            applyFilters();
+        });
+
+        // Initialize city multiselect (empty until province selected)
+        renderMultiselect('filter-city', 'ms-city', [], (selected) => {
+            activeFilters.cities = selected;
+            applyFilters();
+        });
     } catch (err) {
         console.error('Failed to load filters:', err);
     }
 }
 
-function renderMultiselect(options) {
-    const container = document.getElementById('filter-subcategory');
+function renderMultiselect(containerId, msId, options, onChange) {
+    const container = document.getElementById(containerId);
     container.innerHTML = `
-        <button class="multiselect-btn" onclick="this.nextElementSibling.classList.toggle('open')">
-            <span id="ms-label">Semua</span> <span>▾</span>
+        <button class="multiselect-btn" onclick="toggleDropdown('${msId}')">
+            <span id="${msId}-label">Semua</span> <span>▾</span>
         </button>
-        <div class="multiselect-dropdown" id="ms-dropdown">
+        <div class="multiselect-dropdown" id="${msId}">
             ${options.map(o => `
                 <label class="multiselect-option">
-                    <input type="checkbox" value="${o}" onchange="updateMultiselect()"> ${o}
+                    <input type="checkbox" value="${o}" onchange="onMsChange('${msId}')"> ${o}
                 </label>
             `).join('')}
         </div>
     `;
-    // Close dropdown on outside click
+    // Store callback
+    container._onChange = onChange;
+    // Close on outside click
     document.addEventListener('click', (e) => {
         if (!container.contains(e.target)) {
             container.querySelector('.multiselect-dropdown')?.classList.remove('open');
@@ -62,26 +76,59 @@ function renderMultiselect(options) {
     });
 }
 
-function updateMultiselect() {
-    const checkboxes = document.querySelectorAll('#ms-dropdown input[type="checkbox"]');
+function toggleDropdown(msId) {
+    document.getElementById(msId)?.classList.toggle('open');
+}
+
+function onMsChange(msId) {
+    const dropdown = document.getElementById(msId);
+    const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
     const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-    const label = document.getElementById('ms-label');
+    const label = document.getElementById(msId + '-label');
     label.textContent = selected.length ? selected.join(', ') : 'Semua';
-    activeFilters.subcategories = selected;
-    applyFilters();
+
+    // Find the container and call its callback
+    const container = dropdown.parentElement;
+    if (container._onChange) container._onChange(selected);
+}
+
+function updateCityOptions() {
+    // Collect all cities from selected provinces
+    const selectedProvinces = activeFilters.provinces;
+    let cities = [];
+    if (selectedProvinces.length) {
+        selectedProvinces.forEach(p => {
+            (filterData.citiesByProvince?.[p] || []).forEach(c => {
+                if (!cities.includes(c)) cities.push(c);
+            });
+        });
+    } else {
+        // No province selected → show all cities
+        Object.values(filterData.citiesByProvince || {}).forEach(arr => {
+            arr.forEach(c => { if (!cities.includes(c)) cities.push(c); });
+        });
+    }
+    cities.sort();
+
+    // Re-render city multiselect
+    const container = document.getElementById('filter-city');
+    renderMultiselect('filter-city', 'ms-city', cities, (selected) => {
+        activeFilters.cities = selected;
+        applyFilters();
+    });
 }
 
 function applyFilters() {
-    const province = document.getElementById('filter-province').value;
-    activeFilters.province = province;
     loadDashboard();
 }
 
 function resetFilters() {
-    activeFilters = { subcategories: [], province: '' };
-    document.querySelectorAll('#ms-dropdown input[type="checkbox"]').forEach(cb => cb.checked = false);
-    document.getElementById('ms-label').textContent = 'Semua';
-    document.getElementById('filter-province').value = '';
+    activeFilters = { subcategories: [], provinces: [], cities: [] };
+    // Reset all checkboxes
+    document.querySelectorAll('.multiselect-dropdown input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.multiselect-btn span:first-child').forEach(el => el.textContent = 'Semua');
+    // Reset city options to all
+    updateCityOptions();
     loadDashboard();
 }
 
@@ -90,8 +137,11 @@ function getFilterParams() {
     if (activeFilters.subcategories.length) {
         params.set('subcategories', activeFilters.subcategories.join(','));
     }
-    if (activeFilters.province) {
-        params.set('province', activeFilters.province);
+    if (activeFilters.provinces.length) {
+        params.set('province', activeFilters.provinces.join(','));
+    }
+    if (activeFilters.cities.length) {
+        params.set('city', activeFilters.cities.join(','));
     }
     return params.toString();
 }

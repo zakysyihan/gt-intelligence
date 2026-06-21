@@ -42,9 +42,11 @@
                     </div>
                     <div class="filter-group">
                         <label class="filter-label">📍 Provinsi</label>
-                        <select id="filter-province" class="filter-select" onchange="applyFilters()">
-                            <option value="">Semua Provinsi</option>
-                        </select>
+                        <div id="filter-province" class="multiselect"></div>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">🏙️ Kota / Kabupaten</label>
+                        <div id="filter-city" class="multiselect"></div>
                     </div>
                     <button class="btn btn-small" onclick="resetFilters()">↺ Reset</button>
                 </div>
