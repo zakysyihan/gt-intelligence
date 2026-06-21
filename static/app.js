@@ -179,7 +179,7 @@ function renderSubcategoryChart(data) {
         ...CHART_LAYOUT,
         yaxis: { title: 'Total Terjual', gridcolor: '#e2e8f0' },
         showlegend: false,
-        margin: { l: 50, r: 30, t: 20, b: 40 },
+        margin: { l: 50, r: 30, t: 40, b: 40 },
     }, { responsive: true, displayModeBar: false });
 }
 
@@ -201,7 +201,7 @@ function renderPriceDemandChart(data) {
         xaxis: { title: 'Rentang Harga (IDR)' },
         showlegend: false,
         height: 300,
-        margin: { l: 50, r: 50, t: 20, b: 60 },
+        margin: { l: 50, r: 50, t: 40, b: 60 },
     }, { responsive: true, displayModeBar: false });
 }
 
