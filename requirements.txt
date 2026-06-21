@@ -8,9 +8,16 @@ openai>=1.30
 duckdb>=1.0
 orjson>=3.10
 
-# Interface
+# Custom UI
+fastapi>=0.115
+uvicorn>=0.30
+
+# Streamlit (backup UI)
 streamlit>=1.37
 plotly>=5.22
+
+# Google Trends
+pytrends>=4.9
 
 # Config
 python-dotenv>=1.0

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GT Intelligence — Market Analyst</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <h1 class="header-title">🏢 GT Intelligence</h1>
+            <span class="header-subtitle">Market Analyst</span>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-primary" id="chat-toggle" onclick="toggleChat()">
+                💬 Buka Chat
+            </button>
+        </div>
+    </header>
+
+    <!-- Main layout -->
+    <div class="main-layout" id="main-layout">
+        <!-- Dashboard panel -->
+        <div class="dashboard-panel" id="dashboard-panel">
+            <!-- Loading state -->
+            <div class="loading" id="dashboard-loading">
+                <div class="spinner"></div>
+                <p>Memuat data dashboard...</p>
+            </div>
+
+            <!-- Dashboard content (hidden until loaded) -->
+            <div class="dashboard-content" id="dashboard-content" style="display:none;">
+                <!-- Metric cards -->
+                <div class="metrics-grid" id="metrics-grid"></div>
+
+                <!-- Charts row 1 -->
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <h3 class="chart-title">📊 Demand per Subkategori</h3>
+                        <div id="chart-subcategory" class="chart-container"></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3 class="chart-title">💰 Distribusi Harga</h3>
+                        <div id="chart-price" class="chart-container"></div>
+                    </div>
+                </div>
+
+                <!-- Chart row 2 -->
+                <div class="charts-row">
+                    <div class="chart-card full-width">
+                        <h3 class="chart-title">🗺️ Top 10 Kota</h3>
+                        <div id="chart-geo" class="chart-container"></div>
+                    </div>
+                </div>
+
+                <!-- Charts row 3 -->
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <h3 class="chart-title">📈 Demand vs Quality</h3>
+                        <div id="chart-quadrant" class="chart-container"></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3 class="chart-title">💵 Revenue Proxy</h3>
+                        <div id="chart-revenue" class="chart-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat panel -->
+        <div class="chat-panel" id="chat-panel" style="display:none;">
+            <div class="chat-header">
+                <h2 class="chat-title">🤖 Analis Pasar</h2>
+                <div class="chat-header-actions">
+                    <select id="session-select" class="session-select" onchange="switchSession(this.value)"></select>
+                    <button class="btn btn-small" onclick="newSession()">➕</button>
+                </div>
+            </div>
+
+            <!-- Quick actions -->
+            <div class="quick-actions">
+                <button class="quick-btn" onclick="askQuick('Top 10 produk terlaris bulan ini')">🏆 Terlaris</button>
+                <button class="quick-btn" onclick="askQuick('Tren penjualan per subkategori')">📈 Tren</button>
+                <button class="quick-btn" onclick="askQuick('Estimasi pendapatan tertinggi (harga × terjual)')">💰 Pendapatan</button>
+                <button class="quick-btn" onclick="askQuick('Distribusi penjualan per kota di Jawa')">🗺️ Regional</button>
+                <button class="quick-btn" onclick="askQuick('Harga rata-rata per subkategori')">📊 Harga</button>
+                <button class="quick-btn" onclick="askQuick('Spesifikasi produk paling laris (rasa, berat)')">🍫 Specs</button>
+            </div>
+
+            <!-- Chat messages -->
+            <div class="chat-messages" id="chat-messages">
+                <div class="empty-state">
+                    <p>💬 Tanya tentang data pasar Indonesia</p>
+                    <p class="text-muted">Contoh: "Produk mana yang paling menguntungkan?"</p>
+                </div>
+            </div>
+
+            <!-- Chat input -->
+            <div class="chat-input-area">
+                <div class="chat-input-wrapper">
+                    <input type="text" id="chat-input" class="chat-input"
+                           placeholder="Tanya tentang data pasar..."
+                           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}">
+                    <button class="btn btn-primary btn-send" onclick="sendMessage()" id="send-btn">
+                        <span id="send-icon">➤</span>
+                        <span id="send-spinner" class="spinner-small" style="display:none;"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

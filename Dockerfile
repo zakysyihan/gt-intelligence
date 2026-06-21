@@ -13,11 +13,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY src/ ./src/
+COPY static/ ./static/
 COPY data/ ./data/
 COPY .streamlit/ .streamlit/
+COPY start.sh .
 
-# Expose Streamlit port
-EXPOSE 8000
+RUN chmod +x start.sh
 
-# Run Streamlit
-CMD ["streamlit", "run", "src/app/app.py", "--server.port=8000", "--server.address=0.0.0.0"]
+# Expose both ports
+EXPOSE 8000 8501
+
+# Start both services
+CMD ["./start.sh"]

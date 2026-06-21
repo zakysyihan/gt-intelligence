@@ -79,31 +79,57 @@ class AgentResponse:
     follow_ups: list[str] = field(default_factory=list)
     error: str = ""
     is_unanswerable: bool = False
+    is_clarifying: bool = False
+    clarifying_question: str = ""
+    intermediate_steps: list[dict[str, Any]] = field(default_factory=list)
 
 
-SYSTEM_PROMPT = """You are GT Intelligence — an AI market analyst for general trade businesses in Indonesia.
+REACT_SYSTEM_PROMPT = """You are GT Intelligence — an AI market analyst for general trade businesses in Indonesia.
 
 Your job: Convert natural language questions about product data into SQL queries.
 
-RULES:
-1. Generate ONLY valid DuckDB SQL. No explanations in the SQL.
-2. Always use the "products" table.
-3. For "terlaris" / "best-selling", ORDER BY sold_count DESC.
-4. For "profitable" / "menguntungkan", use (price * sold_count) as estimated_revenue.
-5. For aggregation questions, always include ORDER BY and LIMIT.
-6. Use ILIKE for text matching (Indonesian text varies in case).
-7. For flavor/weight queries, handle NULLs (many products lack parsed specs).
-8. Return results in a format useful for the business team.
-9. If the question cannot be answered from the data, set is_unanswerable=true.
+You operate in a ReAct (Reason-Act-Observe) loop. For each step, you must:
 
-You MUST respond with a JSON object:
+1. REASON: Analyze what the user needs. Classify the intent:
+   - "direct_answer" — question is clear, proceed with SQL
+   - "needs_exploration" — need to check data structure first (e.g., what subcategories exist)
+   - "needs_clarification" — question is ambiguous, ask the user to clarify
+   - "chain_queries" — question requires multiple SQL queries and a comparison
+
+2. ACT: Based on classification:
+   - For direct_answer: generate the SQL query
+   - For needs_exploration: generate a discovery query (e.g., SELECT DISTINCT subcategory FROM products)
+   - For needs_clarification: generate a clarifying question for the user
+   - For chain_queries: generate the first SQL query in the chain
+
+3. OBSERVE: After execution, assess if the answer is complete.
+
+RULES:
+- Generate ONLY valid DuckDB SQL. No explanations in the SQL.
+- Always use the "products" table.
+- For "terlaris" / "best-selling", ORDER BY sold_count DESC.
+- For "profitable" / "menguntungkan", use (price * sold_count) as estimated_revenue.
+- For aggregation questions, always include ORDER BY and LIMIT.
+- Use ILIKE for text matching (Indonesian text varies in case).
+- For flavor/weight queries, handle NULLs (many products lack parsed specs).
+- NEVER use review_count in SQL (it's all zeros).
+- Return results in a format useful for the business team.
+
+RESPOND WITH A JSON OBJECT:
 {
+    "intent": "direct_answer|needs_exploration|needs_clarification|chain_queries|answer_complete",
     "sql": "SELECT ...",
+    "clarifying_question": "question to ask user (only if intent is needs_clarification)",
+    "exploration_query": "SELECT DISTINCT ... (only if intent is needs_exploration)",
+    "chain_sql": ["query1", "query2"] (only if intent is chain_queries),
+    "chain_comparison_hint": "what to compare in chain results",
     "is_unanswerable": false,
     "unanswerable_reason": "",
     "insight_hint": "what to highlight in the answer",
     "chart_type": "bar|line|table|scatter|pie",
-    "follow_ups": ["suggested follow-up question 1", "suggested follow-up question 2"]
+    "follow_ups": ["suggested follow-up question 1", "suggested follow-up question 2"],
+    "answer_ready": false,
+    "final_answer": "if answer_ready is true, put the final insight here"
 }
 """
 
@@ -167,6 +193,16 @@ class GTAgent:
         """Convert query results to list of dicts."""
         return [dict(zip(columns, row)) for row in rows]
 
+    def _execute_sql(self, sql: str) -> tuple[list[str], list[dict[str, Any]], str]:
+        """Execute SQL and return (columns, data, error)."""
+        try:
+            query_result = self.con.execute(sql)
+            columns = [desc[0] for desc in query_result.description]
+            rows = query_result.fetchall()
+            return columns, self._format_result(columns, rows), ""
+        except Exception as e:
+            return [], [], str(e)
+
     def _generate_insight(
         self, question: str, data: list[dict], insight_hint: str
     ) -> str:
@@ -224,18 +260,56 @@ class GTAgent:
             pass
         return []
 
+    def generate_title(self, messages: list[dict]) -> str:
+        """Generate a short, descriptive session title from conversation content.
+
+        Args:
+            messages: List of {"role": "user"|"assistant", "content": str} dicts.
+
+        Returns:
+            A short title string (max 6 words, Indonesian). Returns "Sesi Baru" on failure.
+        """
+        if not messages:
+            return "Sesi Baru"
+
+        # Build a compact summary of the conversation for the LLM
+        conversation_text = "\n".join(
+            f"{m['role']}: {m['content'][:200]}" for m in messages[-6:]
+        )
+
+        try:
+            resp = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Generate a short session title (max 6 words, in Indonesian) "
+                            f"for this data analysis conversation:\n{conversation_text}\n\n"
+                            "Return ONLY the title, no quotes, no explanation."
+                        ),
+                    },
+                ],
+                temperature=0.3,
+                max_tokens=30,
+            )
+            title = resp.choices[0].message.content.strip().strip('"').strip("'")
+            return title if title else "Sesi Baru"
+        except Exception:
+            return "Sesi Baru"
+
     def ask(self, question: str) -> AgentResponse:
         """Process a natural language question and return grounded results.
 
-        Flow:
-        1. Send question + schema + business context to OpenAI
-        2. OpenAI returns SQL + metadata
-        3. Execute SQL against DuckDB via WrenAI engine
-        4. Generate insight + follow-up suggestions
+        Uses a ReAct (Reason-Act-Observe) loop:
+        1. Classify intent (direct_answer, needs_exploration, needs_clarification, chain_queries)
+        2. Execute appropriate action (SQL, exploration, clarifying question, chain query)
+        3. Observe if result is complete
+        4. Repeat until answer is ready or max 3 iterations
         """
         response = AgentResponse(question=question)
 
-        # Step 1: Generate SQL via OpenAI
+        # Build context
         schema_str = self._get_schema_str()
         context_prompt = _build_context_prompt()
 
@@ -246,14 +320,12 @@ Unique locations: {self._data_stats['locations']} cities
 Price range: Rp {self._data_stats['price_range'][0]:,} - Rp {self._data_stats['price_range'][1]:,}
 """
 
-        try:
-            llm_resp = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {
-                        "role": "user",
-                        "content": f"""{context_prompt}
+        # ReAct loop setup (max 3 iterations)
+        conversation_history = [
+            {"role": "system", "content": REACT_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": f"""{context_prompt}
 
 {stats_context}
 
@@ -261,54 +333,173 @@ Schema:
 {schema_str}
 
 Question: {question}""",
-                    },
-                ],
-                temperature=0,
-                max_tokens=500,
-                response_format={"type": "json_object"},
+            },
+        ]
+
+        max_iterations = 3
+        all_data: list[dict[str, Any]] = []
+        result = {}
+
+        for iteration in range(max_iterations):
+            try:
+                llm_resp = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=conversation_history,
+                    temperature=0,
+                    max_tokens=500,
+                    response_format={"type": "json_object"},
+                )
+
+                result = orjson.loads(llm_resp.choices[0].message.content)
+            except Exception as e:
+                response.error = f"LLM error: {e}"
+                return response
+
+            intent = result.get("intent", "direct_answer")
+
+            # --- Check if unanswerable ---
+            if result.get("is_unanswerable"):
+                response.is_unanswerable = True
+                response.error = result.get(
+                    "unanswerable_reason",
+                    "Pertanyaan ini tidak bisa dijawab dari data yang tersedia.",
+                )
+                return response
+
+            # --- Intent: needs_clarification ---
+            if intent == "needs_clarification":
+                response.is_clarifying = True
+                response.clarifying_question = result.get(
+                    "clarifying_question",
+                    "Bisa jelaskan lebih spesifik tentang apa yang ingin Anda ketahui?",
+                )
+                return response
+
+            # --- Intent: needs_exploration ---
+            if intent == "needs_exploration":
+                exploration_query = result.get("exploration_query", "")
+                if exploration_query:
+                    columns, data, error = self._execute_sql(exploration_query)
+                    if error:
+                        response.error = f"Exploration query failed: {error}"
+                        return response
+
+                    response.intermediate_steps.append({
+                        "step": iteration + 1,
+                        "intent": "exploration",
+                        "sql": exploration_query,
+                        "data": data,
+                    })
+                    all_data.extend(data)
+
+                    # Feed exploration result back to LLM for the actual answer
+                    exploration_context = json.dumps(data[:10], indent=2, default=str)
+                    conversation_history.append({"role": "assistant", "content": json.dumps(result)})
+                    conversation_history.append({
+                        "role": "user",
+                        "content": (
+                            f"Exploration query returned:\n{exploration_context}\n\n"
+                            "Now generate the actual answer based on this exploration."
+                        ),
+                    })
+                    continue
+
+            # --- Intent: chain_queries ---
+            if intent == "chain_queries":
+                chain_sql_list = result.get("chain_sql", [])
+                chain_comparison = result.get("chain_comparison_hint", "")
+
+                for sql in chain_sql_list:
+                    columns, data, error = self._execute_sql(sql)
+                    if error:
+                        response.error = f"Chain query failed: {error}"
+                        return response
+
+                    response.intermediate_steps.append({
+                        "step": len(response.intermediate_steps) + 1,
+                        "intent": "chain_query",
+                        "sql": sql,
+                        "data": data,
+                    })
+                    all_data.extend(data)
+
+                # Feed chain results back to LLM for comparison analysis
+                chain_summary = []
+                for i, step in enumerate(response.intermediate_steps):
+                    chain_summary.append(
+                        f"Step {i+1} ({step['intent']}):\n"
+                        f"SQL: {step['sql']}\n"
+                        f"Data: {json.dumps(step['data'][:5], indent=2, default=str)}"
+                    )
+
+                conversation_history.append({"role": "assistant", "content": json.dumps(result)})
+                conversation_history.append({
+                    "role": "user",
+                    "content": (
+                        f"Chain query results:\n{chr(10).join(chain_summary)}\n\n"
+                        f"Comparison hint: {chain_comparison}\n\n"
+                        "Now provide the final comparison analysis."
+                    ),
+                })
+                continue
+
+            # --- Intent: direct_answer or answer_complete ---
+            sql = result.get("sql", "")
+            if not sql and intent != "answer_complete":
+                response.error = "LLM did not generate a SQL query."
+                return response
+
+            if sql:
+                columns, data, error = self._execute_sql(sql)
+                if error:
+                    # Try to fix common SQL issues
+                    fix_response = self._retry_with_fix(question, sql, error)
+                    fix_response.intermediate_steps = response.intermediate_steps
+                    return fix_response
+
+                response.sql = sql
+                response.columns = columns
+                response.data = data
+                response.chart_type = result.get("chart_type", "table")
+
+                response.intermediate_steps.append({
+                    "step": iteration + 1,
+                    "intent": intent,
+                    "sql": sql,
+                    "data": data,
+                })
+                all_data.extend(data)
+
+            # Check if answer is ready
+            if result.get("answer_ready", False):
+                final_answer = result.get("final_answer", "")
+                if final_answer:
+                    response.insight = final_answer
+                break
+
+            # Feed result back to LLM to observe if complete
+            observation = (
+                f"Query result:\nSQL: {sql}\n"
+                f"Data: {json.dumps(response.data[:10], indent=2, default=str)}"
             )
+            conversation_history.append({"role": "assistant", "content": json.dumps(result)})
+            conversation_history.append({
+                "role": "user",
+                "content": (
+                    f"{observation}\n\n"
+                    "Is this answer complete? If yes, set answer_ready=true and provide "
+                    "the final insight. If not, continue reasoning."
+                ),
+            })
 
-            result = orjson.loads(llm_resp.choices[0].message.content)
-        except Exception as e:
-            response.error = f"LLM error: {e}"
-            return response
+        # Generate insight if not already provided
+        if not response.insight and all_data:
+            insight_hint = result.get("insight_hint", "")
+            response.insight = self._generate_insight(question, all_data[:15], insight_hint)
 
-        # Step 2: Check if unanswerable
-        if result.get("is_unanswerable"):
-            response.is_unanswerable = True
-            response.error = result.get(
-                "unanswerable_reason",
-                "Pertanyaan ini tidak bisa dijawab dari data yang tersedia.",
-            )
-            return response
-
-        sql = result.get("sql", "")
-        if not sql:
-            response.error = "LLM did not generate a SQL query."
-            return response
-
-        response.sql = sql
-        response.chart_type = result.get("chart_type", "table")
-
-        # Step 3: Execute SQL against DuckDB
-        try:
-            query_result = self.con.execute(sql)
-            columns = [desc[0] for desc in query_result.description]
-            rows = query_result.fetchall()
-            response.columns = columns
-            response.data = self._format_result(columns, rows)
-        except Exception as e:
-            response.error = f"SQL execution error: {e}"
-            # Try to fix common SQL issues
-            response = self._retry_with_fix(question, sql, str(e))
-            return response
-
-        # Step 4: Generate insight and follow-ups
-        if response.data:
-            response.insight = self._generate_insight(
-                question, response.data, result.get("insight_hint", "")
-            )
-            response.follow_ups = self._generate_follow_ups(question, response.data)
+        # Generate follow-ups
+        if all_data:
+            response.follow_ups = self._generate_follow_ups(question, all_data[:10])
 
         return response
 
