@@ -224,6 +224,15 @@
 | Time | Activity | Actor |
 |------|----------|-------|
 | 05:19 | Session start, HISTORY.md read | Kilo |
+| 06:00 - 07:15 | SPEC.md updated: dashboard-first, 8 widgets, Google Trends, quadrant, Streamlit+custom UI | Kilo |
+| 07:00 | Claude 2 started: Streamlit UI → FastAPI + HTML/CSS/JS custom UI | Claude 2 |
+| 07:00 | Claude 3 started: presentation outline (5 slides, Indonesian speaker notes) | Claude 3 |
+| 07:15 | CLAUDE.md updated: visual verification with Playwright | Kilo |
+| 07:30 | README.md written | Kilo |
+| 08:30 | .env.example updated (SumoPod DeepSeek, not OpenAI) | Kilo |
+| 08:30 | Demo video script written | Kilo |
+| 10:10 | Claude 2 done: custom UI (FastAPI + HTML/CSS/JS), ReAct loop, Google Trends, 8 widgets | Claude 2 |
+| 10:10 | Claude 3 done: presentation validated against code, claims corrected | Claude 3 |
 
 #### Open Items (from Session 2)
 
