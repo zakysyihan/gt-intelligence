@@ -118,6 +118,7 @@ This is not optional. Every task gets its own branch, automatically. The human n
 4. **Deploy only from main.** After merging, deploy from `main`. Never from a feature branch.
 5. **Sequential deploys.** If multiple sessions deploy, merge one at a time (merge → deploy → merge → deploy).
 6. **Each session reads SPEC.md but doesn't modify it.** Only Kilo modifies SPEC.md, AGENTS.md, HISTORY.md, research/.
+7. **Every branch must be merged or deleted before session ends.** Unmerged branches cause confusion and conflicts. If the work is done, merge to main. If the work is abandoned, delete the branch. No branch should exist without a clear purpose.
 
 ### What Kilo Does
 
