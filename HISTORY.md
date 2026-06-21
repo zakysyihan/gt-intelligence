@@ -210,6 +210,40 @@
 
 ---
 
+## Session 4 — Sunday Jun 21, 2026 (Day 2 continued)
+
+**Goal:** Finalization — smoke test prep, doc sync, cleanup
+**Active time:** ~0.5 hours (16:32 - 16:45)
+
+#### Steps Completed
+
+1. All stale Streamlit references fixed in ARCHITECTURE.md, presentation-outline.md, README.md
+2. .env.example corrected to match VPS format (SumoPod DeepSeek)
+3. Merged feat/streamlit-dashboard to main, resolved conflicts
+4. Cleaned up stale files (.chainlit/config.toml, .streamlit/config.toml, .claude/plans/)
+5. Deleted merged feature branch
+6. Git repo clean: main branch, no untracked files, all committed
+
+#### Deliverables Checklist
+
+| Item | Status | Owner |
+|------|--------|-------|
+| Custom UI (FastAPI + HTML/CSS/JS) | ✅ Deployed on VPS | Claude 2 |
+| Data pipeline (672 products) | ✅ On VPS | Claude 1 |
+| AI agent (ReAct + auto-retry) | ✅ On VPS | Claude 2 |
+| Google Trends integration | ✅ On VPS | Claude 2 |
+| SPEC.md (591 lines) | ✅ | Kilo |
+| Architecture doc (217 lines) | ✅ | Kilo |
+| Presentation outline (5 slides) | ✅ Code-verified | Claude 3 |
+| README.md (145 lines) | ✅ | Kilo |
+| Demo video script (68 lines) | ✅ | Kilo |
+| .env.example | ✅ Correct format | Kilo |
+| Smoke test | ⏳ User | — |
+| Demo video recording | ⏳ User | — |
+| Slide creation | ⏳ User (external) | — |
+
+---
+
 ## Session 3 — Sunday Jun 21, 2026 (Day 2)
 
 **Goal:** UI rewrite, analytics, architecture doc, prepare for submission
