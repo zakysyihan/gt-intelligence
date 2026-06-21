@@ -47,10 +47,10 @@
 ```
 Tokopedia API → Raw JSON → Staging → Clean → LLM Parse → Validate → SQLite
                                                                               ↓
-User (Browser) ← Streamlit UI ← GTAgent ← DuckDB ← products.db
+User (Browser) ← FastAPI + HTML/CSS/JS ← GTAgent ← DuckDB ← products.db
 ```
 - Highlight: 6-step data pipeline, 7 validation checks
-- Tech stack badges: Python, tokopaedi, Pandas, OpenAI gpt-4o-mini, DuckDB, Streamlit, Docker
+- Tech stack badges: Python, tokopaedi, Pandas, DeepSeek V4 Flash, DuckDB, FastAPI, Docker
 
 ### Key Points
 
@@ -74,8 +74,8 @@ User (Browser) ← Streamlit UI ← GTAgent ← DuckDB ← products.db
 - **tokopaedi:** Satu-satunya cara bypass Akamai (7 cara dicoba, hanya ini yang berhasil)
 - **SQLite:** Zero setup, portable, cukup untuk 672 baris single user
 - **DuckDB:** Query engine cepat, bisa load SQLite langsung via ATTACH
-- **OpenAI gpt-4o-mini:** Default model, configurable ke DeepSeek/O3-Mini via `.env`
-- **Streamlit:** Dashboard-first, built-in charts, multi-session chat
+- **OpenAI-compatible API (SumoPod DeepSeek V4 Flash):** Default model, configurable ke O3-Mini via `.env`
+- **Custom FastAPI + HTML/CSS/JS:** Dashboard-first, smooth UX, collapsible chat panel
 
 ### Speaker Notes (Indonesian)
 
@@ -89,7 +89,7 @@ User (Browser) ← Streamlit UI ← GTAgent ← DuckDB ← products.db
 >
 > Langkah 5: Validasi. 7 checks — semua harus pass sebelum data masuk SQLite.
 >
-> Sekarang flow online-nya. User buka Streamlit, lihat dashboard, klik chat, dan tanya dalam bahasa Indonesia. GTAgent — class Python custom — ambil pertanyaan, kirim ke LLM dengan system prompt yang berisi data dictionary dan business context. LLM generate SQL dalam format JSON. Python eksekusi SQL di DuckDB. Kalau gagal, agent minta LLM perbaiki dan coba lagi. Kalau berhasil, LLM interpretasi hasilnya jadi insight dalam bahasa Indonesia plus saran pertanyaan lanjutan.
+> Sekarang flow online-nya. User buka browser, lihat dashboard, klik chat, dan tanya dalam bahasa Indonesia. GTAgent — class Python custom — ambil pertanyaan, kirim ke LLM dengan system prompt yang berisi data dictionary dan business context. LLM generate SQL dalam format JSON. Python eksekusi SQL di DuckDB. Kalau gagal, agent minta LLM perbaiki dan coba lagi (auto-retry). Kalau berhasil, LLM interpretasi hasilnya jadi insight dalam bahasa Indonesia plus saran pertanyaan lanjutan.
 >
 > Yang penting: ini bukan function calling. LLM menghasilkan SQL sebagai text, dan Python yang mengeksekusi. Grounding-nya lewat prompt engineering — system prompt yang mendefinisikan business context, data dictionary, dan aturan untuk pertanyaan yang tidak bisa dijawab."
 
@@ -188,7 +188,7 @@ User (Browser) ← Streamlit UI ← GTAgent ← DuckDB ← products.db
 - Schema kami trivial: 1 tabel, 14 kolom, tidak ada JOINs. Prompt engineering cukup untuk grounding.
 - BIRD-Interact benchmark 2026: semua model dapat 94%+ akurasi SQL untuk query sederhana.
 - Auto-retry menangani error SQL tanpa user sadar.
-- Model configurable via `.env` — bisa ganti dari gpt-4o-mini ke DeepSeek atau O3-Mini tanpa ubah kode.
+- Model configurable via `.env` — bisa ganti dari DeepSeek ke O3-Mini atau gpt-4o-mini tanpa ubah kode.
 
 ### Speaker Notes (Indonesian)
 
@@ -202,7 +202,7 @@ User (Browser) ← Streamlit UI ← GTAgent ← DuckDB ← products.db
 >
 > Dan yang paling penting: pertanyaan yang tidak bisa dijawab. 'Berapa profit margin?' — jawabannya: 'Data kami hanya punya harga jual, bukan cost.' Tidak dibuat-buat, tidak ditebak.
 >
-> Model default kami gpt-4o-mini dari OpenAI. Tapi ini configurable — satu baris di .env file bisa ganti ke DeepSeek atau O3-Mini. Biaya untuk 672 produk dan demo: kurang dari $1."
+> Model default kami DeepSeek V4 Flash dari SumoPod. Tapi ini configurable — satu baris di .env file bisa ganti ke O3-Mini atau gpt-4o-mini. Biaya untuk 672 produk dan demo: gratis di SumoPod.
 
 ---
 
@@ -221,8 +221,8 @@ User (Browser) ← Streamlit UI ← GTAgent ← DuckDB ← products.db
 **Deliberate Trade-offs (Apa yang Kami Sadar)**
 - SQLite vs PostgreSQL → SQLite cukup untuk 672 baris, zero setup, portable
 - Prompt engineering vs semantic layer → Schema sederhana, prompt engineering cukup. MDL manifest ada di codebase tapi tidak diaktifkan — overkill untuk 1 tabel.
-- gpt-4o-mini vs frontier model → Untuk SQL sederhana, semua model 94%+. Tidak perlu GPT-5.
-- Streamlit vs custom React → 3 hari sprint, Streamlit handle dashboard + chat
+- gpt-4o-mini vs frontier model → Untuk SQL sederhana, semua model 94%+. DeepSeek gratis, cukup.
+- Custom UI vs React/Next.js → 3 hari sprint, FastAPI + HTML/CSS/JS cepat untuk dashboard + chat
 - Single marketplace vs multi → Tokopedia saja sudah 672 produk, multi-marketplace butuh proxy rotation
 - Revenue proxy vs profit margin → Cost data tidak tersedia dari marketplace
 
@@ -256,7 +256,7 @@ User (Browser) ← Streamlit UI ← GTAgent ← DuckDB ← products.db
 >
 > Beberapa trade-off ini disengaja. SQLite? Untuk 672 baris dan single user, PostgreSQL overkill. Prompt engineering vs semantic layer? Untuk 1 tabel dan 14 kolom, prompt engineering cukup. Kami sebenarnya sudah bangun MDL manifest di codebase, tapi tidak diaktifkan — karena over-engineering untuk use case ini. Kalau schema-nya 10 tabel dengan banyak JOINs, baru butuh semantic layer.
 >
-> gpt-4o-mini? Di benchmark TokenMix tahun 2026, semua model dapat 94%+ untuk SQL sederhana. Tidak perlu GPT-5 yang 100x lebih mahal.
+> DeepSeek V4 Flash? Di benchmark TokenMix tahun 2026, semua model dapat 94%+ untuk SQL sederhana. Tidak perlu GPT-5 yang 100x lebih mahal.
 >
 > Yang tidak production-ready: data freshness (ini snapshot), single marketplace (Shopee dan Blibli block kami), tidak ada auth, tidak ada monitoring, scraping manual. Semua ini kami dokumentasikan.
 >

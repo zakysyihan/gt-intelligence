@@ -4,7 +4,7 @@
 
 **Built for:** PT Bangunindo Teknusa Jaya — R&D Specialist (AI & Data) Test Case  
 **Dataset:** 672 food & beverage products from Tokopedia (Java Island)  
-**Stack:** Python, DeepSeek V4 Flash, DuckDB, Streamlit, Docker  
+**Stack:** Python, DeepSeek V4 Flash, DuckDB, FastAPI + HTML/CSS/JS, Docker  
 **Live demo:** http://43.133.140.154:8000
 
 ---
@@ -26,7 +26,7 @@ docker compose up --build
 # Run (local)
 pip install -r requirements.txt
 python -m src.pipeline.run_pipeline
-streamlit run src/app/app.py
+uvicorn src.app.app:app --host 0.0.0.0 --port 8000
 ```
 
 Open http://localhost:8000
@@ -64,7 +64,7 @@ gt-intelligence/
 ├── src/
 │   ├── pipeline/          # Data scraping, cleaning, validation
 │   ├── llm/               # Agent, MDL manifest, data loader
-│   └── app/               # Streamlit UI + custom frontend
+│   └── app/               # FastAPI backend + HTML/CSS/JS frontend
 ├── data/
 │   ├── raw/               # Scraped JSON
 │   ├── staging/           # Backup before transformation

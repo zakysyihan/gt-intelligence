@@ -21,7 +21,8 @@ In general trade businesses, defining the right product to develop is difficult 
 │                        User (Browser)                       │
 │                    http://43.133.140.154:8000                │
 ├─────────────────────┬───────────────────────────────────────┤
-│   Streamlit UI      │   Analyst Agent (Side Panel)          │
+│   FastAPI + HTML/CSS/JS│   Analyst Agent (Side Panel)          │
+│   (Dashboard)         │   (Collapsible, multi-session)        │
 │   - Dashboard       │   - Multi-session chat                │
 │   - Metric cards    │   - Text-to-SQL via DeepSeek V4 Flash │
 │   - Plotly charts   │   - Grounded answers + charts         │
@@ -98,7 +99,7 @@ Results → Agent interprets → Insight (Indonesian)
   ↓
 Follow-up suggestions
   ↓
-Streamlit renders: SQL, data table, Plotly chart, insight text
+Streamlit or FastAPI renders: SQL, data table, Plotly chart, insight text
 ```
 
 ---
@@ -112,16 +113,17 @@ Streamlit renders: SQL, data table, Plotly chart, insight text
 | Data processing | Pandas | Industry standard, easy to explain |
 | LLM Agent | SumoPod DeepSeek V4 Flash | Free, OpenAI-compatible, adequate for simple SQL |
 | Fallback LLM | O3-Mini ($0.06/task) | Best value if DeepSeek quality insufficient |
-| Interface | Streamlit | Dashboard-first UI, built-in charts, multi-session support |
+| Interface | FastAPI + HTML/CSS/JS (custom) | Dashboard-first, collapsible chat side panel, smooth UX |
+| Backup UI | Streamlit (port 8501) | Fallback if custom UI fails |
 | Visualization | Plotly | Interactive charts, st.dialog modal for expansion |
 | Containerization | Docker + Docker Compose | Single container, simple deployment |
 | Deployment | SumoPod VPS (Jakarta) | 2vCPU/2GB/40GB, Rp 60k/month |
 
-### Why Streamlit Over Alternatives
+### Why Custom UI Over Streamlit/Chainlit
 
-- **Not Chainlit:** Chainlit is chat-first by design. Our UX needs dashboard-first with chat as side panel.
-- **Not Dash (Plotly):** Dash is more complex, steeper learning curve. Streamlit is simpler for an MVP.
-- **Not custom React:** Too much work for 3-day sprint. Streamlit handles both dashboard and chat.
+- **Chainlit is chat-first by design.** Dashboard-first UX requires dashboard as main view, chat as side panel. Chainlit can't do this natively.
+- **Streamlit is functional but not smooth.** Reruns on every interaction, limited CSS control, no true collapsible side panel.
+- **Custom HTML/CSS/JS + FastAPI** gives full control over UX: smooth transitions, collapsible chat, chart modals, responsive layout.
 - **Not Metabase:** Adds another service. We need dashboard + LLM chat in one app.
 
 ### Why SQLite Over PostgreSQL
@@ -183,7 +185,7 @@ CREATE TABLE products (
 | Concern | MVP (This Project) | Production (Future) |
 |---------|-------------------|---------------------|
 | Database | SQLite (file-based) | PostgreSQL (concurrent, millions of rows) |
-| UI | Streamlit (single container) | Custom frontend (React/Next.js) |
+| UI | FastAPI + custom HTML/CSS/JS (single container) | Full React/Next.js frontend |
 | LLM | SumoPod DeepSeek V4 Flash (API) | Self-hosted LLM or fine-tuned SLM |
 | Scraping | Manual run, tokopaedi library | Scheduled (Airflow), proxy rotation, multi-marketplace |
 | Auth | None (single user) | Multi-user, RBAC |

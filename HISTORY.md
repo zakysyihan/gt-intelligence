@@ -153,16 +153,13 @@
 | 24 | Branch rules: every Claude session on feature branch | Prevents conflicts in parallel work | Applied |
 | 25 | **UI Rewrite: Chainlit → Streamlit** | Chainlit is chat-first; SPEC needs dashboard-first with tabs + multi-chat | Planned (Day 2) |
 
-#### Open Items (Next: Day 2)
+#### Open Items (Next: Day 3 — Final)
 
-- [ ] **UI Rewrite: Chainlit → Streamlit** — tab-based (Dashboard | Analyst Agent), multi-chat sessions
-- [ ] Analytics scripts (5 business questions answered with data)
-- [ ] .env.example update (SumoPod DeepSeek, not OpenAI)
-- [ ] Integration testing (end-to-end: question → SQL → answer → chart)
-- [ ] Architecture doc (3-5 pages, required deliverable)
-- [ ] README.md (setup instructions)
-- [ ] Presentation (5 slides, required deliverable)
-- [ ] Demo video (7-10 min, required deliverable)
+- [ ] Smoke test (user) — http://43.133.140.154:8000
+- [ ] Merge feat/streamlit-dashboard to main (after smoke test passes)
+- [ ] Record demo video (7-10 min, follow submission/demo-video-script.md)
+- [ ] Final review of architecture doc, presentation, README
+- [ ] Submit by Mon Jun 22, 09:30 WIB
 
 ---
 
