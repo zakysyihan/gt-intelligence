@@ -281,21 +281,26 @@ function median(arr) {
     return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
-// Hardcoded thresholds (global, static — not affected by filters)
-// Based on Indonesian F&B marketplace research:
-// - Demand: 10 units/day (300/month) = moderate seller threshold
-// - Rating: 4.5 = quality cutoff (above = good quality)
-// - Price: 50,000 IDR = mid-range price point
-const THRESHOLDS = {
-    demand_daily: 10,       // products/day (300/month)
-    rating: 4.5,            // quality cutoff
-    price: 50000,           // IDR mid-range
-};
+// Quadrant axes center at data median, range adjusted so median sits at visual center
+// Log scale: median at geometric center of [min, max]
+// Linear scale: median at arithmetic center of [min, max]
 
 function renderQuadrantChart(products) {
     if (!products || !products.length) return;
 
-    // Use daily_sold for x-axis (demand per day)
+    const dailySold = products.map(p => p.daily_sold || p.sold_count / 30).sort((a, b) => a - b);
+    const ratings = products.map(p => p.rating).sort((a, b) => a - b);
+    const medDemand = median(dailySold);
+    const medRating = median(ratings);
+
+    // X-axis (log): range centered on median
+    const xMin = Math.max(0.1, medDemand / 10);
+    const xMax = medDemand * 10;
+    // Y-axis (linear): range centered on median
+    const yPad = Math.max(0.5, (5 - medRating) * 0.5);
+    const yMin = Math.max(0, medRating - yPad);
+    const yMax = Math.min(5.5, medRating + yPad);
+
     const subcats = [...new Set(products.map(p => p.subcategory))];
     const traces = subcats.map((sc, i) => {
         const pts = products.filter(p => p.subcategory === sc);
@@ -309,25 +314,16 @@ function renderQuadrantChart(products) {
         };
     });
 
-    // Static thresholds
-    const demandThreshold = THRESHOLDS.demand_daily;
-    const ratingThreshold = THRESHOLDS.rating;
-
-    // Axis range: center the threshold in the chart
-    // Log scale: range = [threshold/10, threshold*100] → threshold at ~33% (visual center on log)
-    const xMin = demandThreshold / 10;
-    const xMax = demandThreshold * 100;
-
     const shapes = [
-        { type: 'line', x0: demandThreshold, x1: demandThreshold, y0: 0, y1: 5.5, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: xMin, x1: xMax, y0: ratingThreshold, y1: ratingThreshold, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: medDemand, x1: medDemand, y0: yMin, y1: yMax, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: xMin, x1: xMax, y0: medRating, y1: medRating, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    // Labels in center of each quadrant
-    const xLow = Math.sqrt(xMin * demandThreshold);
-    const xHigh = Math.sqrt(demandThreshold * xMax);
-    const yLow = ratingThreshold / 2;
-    const yHigh = ratingThreshold + (5.5 - ratingThreshold) / 2;
+    // Labels centered in each quadrant
+    const xLow = Math.sqrt(xMin * medDemand);
+    const xHigh = Math.sqrt(medDemand * xMax);
+    const yLow = (yMin + medRating) / 2;
+    const yHigh = (medRating + yMax) / 2;
 
     const annotations = [
         { x: xHigh, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 10, color: '#059669' } },
@@ -339,7 +335,7 @@ function renderQuadrantChart(products) {
     plotChart('chart-quadrant', traces, {
         ...CHART_LAYOUT,
         xaxis: { title: 'Produk Terjual/Hari', type: 'log', range: [Math.log10(xMin), Math.log10(xMax)], gridcolor: '#e2e8f0' },
-        yaxis: { title: 'Rating', range: [0, 5.5], gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Rating', range: [yMin, yMax], gridcolor: '#e2e8f0' },
         shapes, annotations,
         height: 300,
     }, { responsive: true, displayModeBar: false });
@@ -347,6 +343,18 @@ function renderQuadrantChart(products) {
 
 function renderDemandPriceQuadrant(products) {
     if (!products || !products.length) return;
+
+    const dailySold = products.map(p => p.daily_sold || p.sold_count / 30).sort((a, b) => a - b);
+    const prices = products.map(p => p.price).sort((a, b) => a - b);
+    const medDemand = median(dailySold);
+    const medPrice = median(prices);
+
+    // X-axis (log): range centered on median
+    const xMin = Math.max(0.1, medDemand / 10);
+    const xMax = medDemand * 10;
+    // Y-axis (log): range centered on median
+    const yMin = Math.max(1000, medPrice / 10);
+    const yMax = medPrice * 10;
 
     const subcats = [...new Set(products.map(p => p.subcategory))];
     const traces = subcats.map((sc, i) => {
@@ -361,25 +369,15 @@ function renderDemandPriceQuadrant(products) {
         };
     });
 
-    // Static thresholds
-    const demandThreshold = THRESHOLDS.demand_daily;
-    const priceThreshold = THRESHOLDS.price;
-
-    // Axis ranges
-    const xMin = demandThreshold / 10;
-    const xMax = demandThreshold * 100;
-    const yMin = priceThreshold / 10;
-    const yMax = priceThreshold * 20;
-
     const shapes = [
-        { type: 'line', x0: demandThreshold, x1: demandThreshold, y0: yMin, y1: yMax, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: xMin, x1: xMax, y0: priceThreshold, y1: priceThreshold, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: medDemand, x1: medDemand, y0: yMin, y1: yMax, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: xMin, x1: xMax, y0: medPrice, y1: medPrice, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    const xLow = Math.sqrt(xMin * demandThreshold);
-    const xHigh = Math.sqrt(demandThreshold * xMax);
-    const yLow = Math.sqrt(yMin * priceThreshold);
-    const yHigh = Math.sqrt(priceThreshold * yMax);
+    const xLow = Math.sqrt(xMin * medDemand);
+    const xHigh = Math.sqrt(medDemand * xMax);
+    const yLow = Math.sqrt(yMin * medPrice);
+    const yHigh = Math.sqrt(medPrice * yMax);
 
     const annotations = [
         { x: xHigh, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 10, color: '#059669' } },
