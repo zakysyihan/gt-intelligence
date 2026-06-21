@@ -115,7 +115,7 @@ async function loadDashboard() {
         renderMetrics(dashRes);
         renderSubcategoryChart(dashRes.subcategory_demand);
         renderPriceDemandChart(dashRes.price_demand);
-        renderGeoMap(geoRes.points || []);
+        renderGeoMap(geoRes.provinces || []);
         renderQuadrantChart(quadRes.products || []);
         renderDistributionQuadrant(storeRes.products || []);
 
@@ -197,79 +197,59 @@ function renderPriceDemandChart(data) {
     }, { responsive: true, displayModeBar: false });
 }
 
-function renderGeoMap(points) {
-    if (!points || !points.length) return;
+async function renderGeoMap(provinces) {
+    if (!provinces || !provinces.length) return;
 
-    // Use densitymapbox for smooth heat-density visualization
-    // Weight each point by seller_count for density intensity
-    const weighted = [];
-    points.forEach(p => {
-        // Repeat points by weight for density effect
-        const count = Math.max(1, Math.round(p.seller_count / 20));
-        for (let i = 0; i < count; i++) {
-            weighted.push(p);
-        }
-    });
+    // Fetch GeoJSON for Java provinces
+    let geojson;
+    try {
+        const res = await fetch('/static/java_provinces.geojson');
+        geojson = await res.json();
+    } catch (e) {
+        console.error('Failed to load GeoJSON:', e);
+        return;
+    }
 
-    // Add slight jitter to prevent exact overlap
-    const jitter = () => (Math.random() - 0.5) * 0.03;
+    // Build lookup: province name → seller_count
+    const dataMap = {};
+    provinces.forEach(p => { dataMap[p.province] = p.seller_count; });
 
-    const topPoints = points.slice(0, 8);
+    // Map GeoJSON features to data values
+    const locations = geojson.features.map(f => f.properties.name);
+    const values = locations.map(name => dataMap[name] || 0);
+    const hoverText = locations.map((name, i) => `${name}<br>Penjual: ${values[i]}`);
 
-    Plotly.newPlot('chart-geo', [
-        // Density layer
-        {
-            type: 'densitymapbox',
-            lat: weighted.map(p => p.lat + jitter()),
-            lon: weighted.map(p => p.lng + jitter()),
-            z: weighted.map(p => p.seller_count),
-            colorscale: [
-                [0, 'rgba(220,238,244,0)'],
-                [0.2, 'rgba(168,213,226,0.6)'],
-                [0.4, 'rgba(118,192,207,0.7)'],
-                [0.6, 'rgba(74,171,184,0.8)'],
-                [0.8, 'rgba(36,150,163,0.85)'],
-                [1, 'rgba(20,120,130,0.9)'],
-            ],
-            radius: 25,
-            showscale: true,
-            colorbar: {
-                title: { text: 'Penjual', font: { size: 11 } },
-                thickness: 12,
-                len: 0.6,
-                tickfont: { size: 10 },
-            },
-            hoverinfo: 'skip',
+    Plotly.newPlot('chart-geo', [{
+        type: 'choroplethmapbox',
+        geojson: geojson,
+        locations: locations,
+        z: values,
+        featureidkey: 'properties.name',
+        colorscale: [
+            [0, '#e8f4f8'],
+            [0.25, '#b8d8e0'],
+            [0.5, '#7ec8d4'],
+            [0.75, '#4aabb8'],
+            [1, '#1a7a8a'],
+        ],
+        text: hoverText,
+        hovertemplate: '%{text}<extra></extra>',
+        marker: {
+            line: { width: 1, color: '#ffffff' },
         },
-        // City labels
-        {
-            type: 'scattermapbox',
-            mode: 'text',
-            lat: topPoints.map(p => p.lat),
-            lon: topPoints.map(p => p.lng),
-            text: topPoints.map(p => p.city),
-            textfont: { size: 10, color: '#1e293b', family: 'Inter, sans-serif' },
-            textposition: 'top center',
-            showlegend: false,
-            hoverinfo: 'skip',
+        showscale: true,
+        colorbar: {
+            title: { text: 'Penjual', font: { size: 11 } },
+            thickness: 12,
+            len: 0.6,
+            tickfont: { size: 10 },
         },
-        // Scatter dots for hover info
-        {
-            type: 'scattermapbox',
-            mode: 'markers',
-            lat: points.map(p => p.lat),
-            lon: points.map(p => p.lng),
-            marker: { size: 1, opacity: 0 },
-            customdata: points.map(p => [p.city, p.seller_count, p.total_sold]),
-            hovertemplate: '<b>%{customdata[0]}</b><br>Penjual: %{customdata[1]}<br>Terjual: %{customdata[2]}<extra></extra>',
-            showlegend: false,
-        },
-    ], {
+    }], {
         ...CHART_LAYOUT,
         mapbox: {
             style: 'open-street-map',
             center: { lat: -7.3, lon: 109.5 },
-            zoom: 6.5,
+            zoom: 6,
         },
         height: 400,
         margin: { l: 0, r: 0, t: 0, b: 0 },

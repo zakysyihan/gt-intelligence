@@ -311,26 +311,55 @@ async def get_geo_map(subcategories: str = None, province: str = None):
         "Magelang": (-7.4704, 110.2178),
     }
 
-    points = []
+    # Map cities to provinces
+    CITY_TO_PROVINCE = {
+        'Jakarta Barat': 'DKI Jakarta', 'Jakarta Utara': 'DKI Jakarta',
+        'Jakarta Selatan': 'DKI Jakarta', 'Jakarta Timur': 'DKI Jakarta',
+        'Jakarta Pusat': 'DKI Jakarta',
+        'Tangerang': 'Banten', 'Kab. Tangerang': 'Banten', 'Serang': 'Banten',
+        'Kab. Tangerang': 'Banten',
+        'Bandung': 'Jawa Barat', 'Kab. Bandung': 'Jawa Barat',
+        'Bekasi': 'Jawa Barat', 'Kab. Bekasi': 'Jawa Barat',
+        'Depok': 'Jawa Barat', 'Bogor': 'Jawa Barat',
+        'Karawang': 'Jawa Barat', 'Purwakarta': 'Jawa Barat',
+        'Sumedang': 'Jawa Barat', 'Garut': 'Jawa Barat',
+        'Tasikmalaya': 'Jawa Barat', 'Cirebon': 'Jawa Barat',
+        'Sukabumi': 'Jawa Barat', 'Cianjur': 'Jawa Barat',
+        'Semarang': 'Jawa Tengah', 'Solo': 'Jawa Tengah',
+        'Purwokerto': 'Jawa Tengah', 'Cirebon': 'Jawa Tengah',
+        'Magelang': 'Jawa Tengah',
+        'Yogyakarta': 'DI Yogyakarta',
+        'Surabaya': 'Jawa Timur', 'Malang': 'Jawa Timur',
+        'Kediri': 'Jawa Timur', 'Madiun': 'Jawa Timur',
+        'Jember': 'Jawa Timur', 'Probolinggo': 'Jawa Timur',
+    }
+
+    # Aggregate by province
+    province_data = {}
     for r in rows:
         city = r[0]
-        if city in CITY_COORDS:
-            lat, lng = CITY_COORDS[city]
-            points.append({
-                "city": city, "lat": lat, "lng": lng,
-                "seller_count": r[1], "total_sold": r[2],
-            })
-        else:
-            # Try partial match for "Kab. X" vs "X"
-            for known_city, coords in CITY_COORDS.items():
+        # Try exact match first, then partial
+        prov = CITY_TO_PROVINCE.get(city)
+        if not prov:
+            for known_city, p in CITY_TO_PROVINCE.items():
                 if known_city in city or city in known_city:
-                    points.append({
-                        "city": city, "lat": coords[0], "lng": coords[1],
-                        "seller_count": r[1], "total_sold": r[2],
-                    })
+                    prov = p
                     break
+        if not prov:
+            prov = 'Lainnya'
+        if prov not in province_data:
+            province_data[prov] = {'seller_count': 0, 'total_sold': 0, 'cities': []}
+        province_data[prov]['seller_count'] += r[1]
+        province_data[prov]['total_sold'] += r[2]
+        province_data[prov]['cities'].append(city)
 
-    return {"points": points}
+    # Convert to list for Plotly choropleth
+    result = [
+        {'province': p, 'seller_count': d['seller_count'], 'total_sold': d['total_sold']}
+        for p, d in province_data.items()
+    ]
+
+    return {"provinces": result}
 
 
 @app.get("/api/dashboard/revenue")
