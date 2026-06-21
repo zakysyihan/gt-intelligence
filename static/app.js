@@ -200,31 +200,65 @@ function renderPriceDemandChart(data) {
 function renderGeoMap(points) {
     if (!points || !points.length) return;
 
-    // Label top cities
-    const topCities = points.slice(0, 8).map(p => p.city);
-    const textVals = points.map(p =>
-        topCities.includes(p.city) ? p.city : ''
-    );
+    // Create a single scattermapbox trace with binned colors (choropleth-like)
+    // Use large, semi-transparent circles that overlap to fill regions
+    const vals = points.map(p => p.seller_count);
+    const maxVal = Math.max(...vals);
 
-    Plotly.newPlot('chart-geo', [{
+    // Bin values into 5 levels (like the reference)
+    const bins = [0.1, 0.25, 0.5, 0.75, 1.0];
+    const binLabels = bins.map((b, i) => {
+        const lo = Math.ceil(maxVal * (i === 0 ? 0 : bins[i - 1]));
+        const hi = Math.floor(maxVal * b);
+        return i === 4 ? `${lo.toLocaleString()} +` : `${lo.toLocaleString()} - ${hi.toLocaleString()}`;
+    });
+
+    // Assign each point to a bin
+    const binIdx = points.map(p => {
+        const ratio = p.seller_count / maxVal;
+        return bins.findIndex(b => ratio <= b);
+    });
+
+    // Muted teal color scale (matching reference)
+    const binColors = ['#e8f4f8', '#b8d8e0', '#8cbfc8', '#5da8b4', '#2d8f9e'];
+
+    // Create one trace per bin for legend
+    const traces = bins.map((_, i) => {
+        const pts = points.map((p, j) => binIdx[j] === i ? p : null).filter(Boolean);
+        if (!pts.length) return null;
+        return {
+            type: 'scattermapbox',
+            mode: 'markers',
+            name: binLabels[i],
+            lat: pts.map(p => p.lat),
+            lon: pts.map(p => p.lng),
+            marker: {
+                size: pts.map(p => Math.sqrt(p.seller_count / maxVal) * 50 + 20),
+                color: binColors[i],
+                opacity: 0.7,
+                sizemode: 'diameter',
+            },
+            customdata: pts.map(p => [p.city, p.seller_count, p.total_sold]),
+            hovertemplate: '<b>%{customdata[0]}</b><br>Penjual: %{customdata[1]}<br>Terjual: %{customdata[2]}<extra></extra>',
+            showlegend: true,
+        };
+    }).filter(Boolean);
+
+    // Add city labels as a separate trace
+    const topPoints = points.slice(0, 6);
+    traces.push({
         type: 'scattermapbox',
-        mode: 'markers+text',
-        lat: points.map(p => p.lat),
-        lon: points.map(p => p.lng),
-        text: textVals,
+        mode: 'text',
+        lat: topPoints.map(p => p.lat),
+        lon: topPoints.map(p => p.lng),
+        text: topPoints.map(p => p.city),
+        textfont: { size: 10, color: '#1e293b', family: 'Inter, sans-serif' },
         textposition: 'top center',
-        textfont: { size: 10, color: '#1e293b' },
-        marker: {
-            size: points.map(p => Math.sqrt(p.seller_count) * 4),
-            color: points.map(p => p.seller_count),
-            colorscale: [[0, '#dbeafe'], [0.5, '#2563eb'], [1, '#1e3a8a']],
-            colorbar: { title: 'Penjual', thickness: 15, len: 0.5 },
-            opacity: 0.85,
-            sizemode: 'diameter',
-        },
-        customdata: points.map(p => [p.city, p.seller_count, p.total_sold]),
-        hovertemplate: '<b>%{customdata[0]}</b><br>Penjual: %{customdata[1]}<br>Terjual: %{customdata[2]}<extra></extra>',
-    }], {
+        showlegend: false,
+        hoverinfo: 'skip',
+    });
+
+    Plotly.newPlot('chart-geo', traces, {
         ...CHART_LAYOUT,
         mapbox: {
             style: 'open-street-map',
@@ -233,7 +267,14 @@ function renderGeoMap(points) {
         },
         height: 400,
         margin: { l: 0, r: 0, t: 0, b: 0 },
-        showlegend: false,
+        legend: {
+            title: { text: 'Jumlah Penjual', font: { size: 11 } },
+            font: { size: 10 },
+            x: 0, y: 0,
+            bgcolor: 'rgba(255,255,255,0.85)',
+            bordercolor: '#e2e8f0',
+            borderwidth: 1,
+        },
     }, { responsive: true, displayModeBar: false });
 }
 

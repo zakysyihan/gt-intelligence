@@ -267,7 +267,7 @@ async def get_quadrant_store_data(subcategories: str = None, province: str = Non
 
 @app.get("/api/dashboard/geo-map")
 async def get_geo_map(subcategories: str = None, province: str = None):
-    """Return geo data with lat/lng for scatter_mapbox visualization."""
+    """Return geo data with lat/lng for mapbox visualization."""
     agent = get_agent()
     where, params = _build_filter_clause(subcategories, province)
     rows = agent.con.execute(
@@ -310,12 +310,6 @@ async def get_geo_map(subcategories: str = None, province: str = None):
         "Cianjur": (-6.8172, 107.1373),
         "Magelang": (-7.4704, 110.2178),
     }
-
-    agent = get_agent()
-    rows = agent.con.execute(
-        "SELECT shop_location, COUNT(*) as seller_count, SUM(sold_count) as total_sold "
-        "FROM products GROUP BY shop_location ORDER BY seller_count DESC"
-    ).fetchall()
 
     points = []
     for r in rows:
