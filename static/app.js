@@ -194,7 +194,7 @@ function renderPriceDemandChart(data) {
         xaxis: { title: 'Rentang Harga (IDR)' },
         showlegend: false,
         height: 300,
-        margin: { l: 50, r: 30, t: 20, b: 60 },
+        margin: { l: 50, r: 50, t: 20, b: 60 },
     }, { responsive: true, displayModeBar: false });
 }
 

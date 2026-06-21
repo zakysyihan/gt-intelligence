@@ -168,7 +168,7 @@ async def get_dashboard(subcategories: str = None, province: str = None):
                 WHEN price < 30000 THEN '15K-30K'
                 WHEN price < 75000 THEN '30K-75K'
                 WHEN price < 150000 THEN '75K-150K'
-                ELSE '> 150K'
+                ELSE '150K+'
             END as price_range, SUM(sold_count) as total_sold
             FROM products {where} GROUP BY price_range
         ) ORDER BY total_sold DESC LIMIT 1"""
@@ -186,7 +186,7 @@ async def get_dashboard(subcategories: str = None, province: str = None):
             WHEN price < 30000 THEN '15K-30K'
             WHEN price < 75000 THEN '30K-75K'
             WHEN price < 150000 THEN '75K-150K'
-            ELSE '> 150K'
+            ELSE '150K+'
         END as price_range, SUM(sold_count), COUNT(*)
         FROM products """ + where + """ GROUP BY price_range ORDER BY MIN(price)"""
     )]

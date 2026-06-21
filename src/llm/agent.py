@@ -569,7 +569,7 @@ Question: {question}""",
                         WHEN price < 30000 THEN '15K-30K'
                         WHEN price < 75000 THEN '30K-75K'
                         WHEN price < 150000 THEN '75K-150K'
-                        ELSE '> 150K'
+                        ELSE '150K+'
                     END as price_range,
                     SUM(sold_count) as total_sold
                 FROM products GROUP BY price_range
@@ -598,7 +598,7 @@ Question: {question}""",
                     WHEN price < 30000 THEN '15K-30K'
                     WHEN price < 75000 THEN '30K-75K'
                     WHEN price < 150000 THEN '75K-150K'
-                    ELSE '> 150K'
+                    ELSE '150K+'
                 END as price_range,
                 SUM(sold_count) as total_demand,
                 COUNT(*) as product_count

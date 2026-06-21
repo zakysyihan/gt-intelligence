@@ -16,7 +16,7 @@
 ### Visual
 - Left: Manual research workflow (browse marketplace → screenshot → spreadsheet → meeting)
 - Right: GT Intelligence workflow (scrape → clean → analyze → ask)
-- Bottom: Dataset summary (672 products, 3 subcategories, 32 kota di Jawa)
+- Bottom: Dataset summary (1,317 products, 3 subcategories, 32 kab/kota di Indonesia, 5 provinsi)
 
 ### Key Points
 1. **The problem:** Di bisnis general trade, menentukan produk yang tepat untuk dikembangkan itu sulit. Data tersebar di marketplace, tidak terpusat, dan sulit dikumpulkan oleh non-technical team.
