@@ -27,12 +27,14 @@ async function loadFilters() {
         const data = await res.json();
         renderMultiselect(data.subcategories || []);
         const sel = document.getElementById('filter-province');
-        (data.provinces || []).forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p;
-            opt.textContent = p;
-            sel.appendChild(opt);
-        });
+        if (sel) {
+            (data.provinces || []).forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = p;
+                sel.appendChild(opt);
+            });
+        }
     } catch (err) {
         console.error('Failed to load filters:', err);
     }
@@ -105,17 +107,15 @@ async function loadDashboard() {
     try {
         const fp = getFilterParams();
         const qs = fp ? `?${fp}` : '';
-        const [dashRes, quadRes, storeRes, geoRes] = await Promise.all([
+        const [dashRes, quadRes, storeRes] = await Promise.all([
             fetch(`${API}/api/dashboard${qs}`).then(r => r.json()),
             fetch(`${API}/api/dashboard/quadrant${qs}`).then(r => r.json()),
             fetch(`${API}/api/dashboard/quadrant-store${qs}`).then(r => r.json()),
-            fetch(`${API}/api/dashboard/geo-map${qs}`).then(r => r.json()),
         ]);
 
         renderMetrics(dashRes);
         renderSubcategoryChart(dashRes.subcategory_demand);
         renderPriceDemandChart(dashRes.price_demand);
-        renderGeoMap(geoRes.provinces || []);
         renderQuadrantChart(quadRes.products || []);
         renderDistributionQuadrant(storeRes.products || []);
 
@@ -194,66 +194,6 @@ function renderPriceDemandChart(data) {
         xaxis: { title: 'Rentang Harga (IDR)' },
         showlegend: false,
         height: 300,
-    }, { responsive: true, displayModeBar: false });
-}
-
-async function renderGeoMap(provinces) {
-    if (!provinces || !provinces.length) return;
-
-    // Fetch GeoJSON for Java provinces
-    let geojson;
-    try {
-        const res = await fetch('/static/java_provinces.geojson');
-        geojson = await res.json();
-    } catch (e) {
-        console.error('Failed to load GeoJSON:', e);
-        return;
-    }
-
-    // Build lookup: province name → seller_count
-    const dataMap = {};
-    provinces.forEach(p => { dataMap[p.province] = p.seller_count; });
-
-    // Map GeoJSON features to data values
-    const locations = geojson.features.map(f => f.properties.name);
-    const values = locations.map(name => dataMap[name] || 0);
-    const hoverText = locations.map((name, i) => `${name}<br>Penjual: ${values[i]}`);
-
-    Plotly.newPlot('chart-geo', [{
-        type: 'choroplethmapbox',
-        geojson: geojson,
-        locations: locations,
-        z: values,
-        featureidkey: 'properties.name',
-        colorscale: [
-            [0, '#e8f4f8'],
-            [0.25, '#b8d8e0'],
-            [0.5, '#7ec8d4'],
-            [0.75, '#4aabb8'],
-            [1, '#1a7a8a'],
-        ],
-        text: hoverText,
-        hovertemplate: '%{text}<extra></extra>',
-        marker: {
-            line: { width: 1, color: '#ffffff' },
-        },
-        showscale: true,
-        colorbar: {
-            title: { text: 'Penjual', font: { size: 11 } },
-            thickness: 12,
-            len: 0.6,
-            tickfont: { size: 10 },
-        },
-    }], {
-        ...CHART_LAYOUT,
-        mapbox: {
-            style: 'open-street-map',
-            center: { lat: -7.3, lon: 109.5 },
-            zoom: 6,
-        },
-        height: 400,
-        margin: { l: 0, r: 0, t: 0, b: 0 },
-        showlegend: false,
     }, { responsive: true, displayModeBar: false });
 }
 
