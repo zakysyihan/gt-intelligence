@@ -211,14 +211,19 @@ function renderSpecsTable(specs) {
         grouped[s.subcategory].push(s);
     });
 
-    let html = '<div style="max-height:300px;overflow-y:auto;">';
-    for (const [subcat, items] of Object.entries(grouped)) {
-        html += `<div style="font-weight:600;margin:8px 0 4px;color:#334155;">${subcat.toUpperCase()}</div>`;
-        html += '<table class="data-table"><thead><tr><th>Rasa</th><th>Berat</th><th>Total Terjual</th><th>Produk</th></tr></thead><tbody>';
+    const subcats = Object.keys(grouped);
+    const cols = subcats.length <= 2 ? subcats.length : Math.min(3, subcats.length);
+
+    let html = `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:16px;">`;
+    for (const subcat of subcats) {
+        const items = grouped[subcat];
+        html += '<div>';
+        html += `<div style="font-weight:700;margin-bottom:8px;color:#1e293b;font-size:0.9rem;">${subcat.toUpperCase()}</div>`;
+        html += '<table class="data-table"><thead><tr><th>Rasa</th><th>Berat</th><th>Terjual</th><th>#</th></tr></thead><tbody>';
         items.slice(0, 5).forEach(s => {
             html += `<tr><td>${escapeHtml(s.flavor)}</td><td>${escapeHtml(s.weight || '-')}</td><td>${s.total_sold.toLocaleString()}</td><td>${s.count}</td></tr>`;
         });
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
     }
     html += '</div>';
     container.innerHTML = html;
