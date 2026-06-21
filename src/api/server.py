@@ -127,6 +127,58 @@ async def get_dashboard():
     return dash
 
 
+@app.get("/api/dashboard/quadrant")
+async def get_quadrant_data():
+    """Return per-product data for the opportunity quadrant (demand vs rating)."""
+    agent = get_agent()
+    rows = agent.con.execute(
+        "SELECT product_name, subcategory, sold_count, rating, price "
+        "FROM products WHERE rating > 0 ORDER BY sold_count DESC LIMIT 200"
+    ).fetchall()
+    return {
+        "products": [
+            {"name": r[0], "subcategory": r[1], "sold_count": r[2], "rating": r[3], "price": r[4]}
+            for r in rows
+        ]
+    }
+
+
+@app.get("/api/dashboard/revenue")
+async def get_revenue_data():
+    """Return per-product data for revenue proxy chart (price vs demand)."""
+    agent = get_agent()
+    rows = agent.con.execute(
+        "SELECT product_name, subcategory, price, sold_count, "
+        "(price * sold_count) as estimated_revenue "
+        "FROM products ORDER BY estimated_revenue DESC LIMIT 200"
+    ).fetchall()
+    return {
+        "products": [
+            {"name": r[0], "subcategory": r[1], "price": r[2], "sold_count": r[3], "estimated_revenue": r[4]}
+            for r in rows
+        ]
+    }
+
+
+@app.get("/api/dashboard/specs")
+async def get_spec_signals():
+    """Return top product specs (flavor/weight) by subcategory."""
+    agent = get_agent()
+    rows = agent.con.execute(
+        "SELECT subcategory, flavor, weight, SUM(sold_count) as total_sold, COUNT(*) as count "
+        "FROM products WHERE flavor IS NOT NULL AND flavor != '' "
+        "GROUP BY subcategory, flavor, weight "
+        "HAVING count >= 3 "
+        "ORDER BY subcategory, total_sold DESC"
+    ).fetchall()
+    return {
+        "specs": [
+            {"subcategory": r[0], "flavor": r[1], "weight": r[2], "total_sold": r[3], "count": r[4]}
+            for r in rows
+        ]
+    }
+
+
 @app.get("/api/trends")
 async def get_trends():
     """Return Google Trends data (cached)."""

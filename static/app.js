@@ -32,8 +32,17 @@ async function loadDashboard() {
         renderSubcategoryChart(dash.subcategory_demand);
         renderPriceChart(dash.price_distribution);
         renderGeoChart(dash.geo_distribution);
-        // Quadrant and revenue charts need per-product data — render on demand
-        renderPlaceholderCharts();
+
+        // Fetch per-product data for scatter charts
+        const [quadRes, revRes, specRes] = await Promise.all([
+            fetch(`${API}/api/dashboard/quadrant`).then(r => r.json()),
+            fetch(`${API}/api/dashboard/revenue`).then(r => r.json()),
+            fetch(`${API}/api/dashboard/specs`).then(r => r.json()),
+        ]);
+
+        renderQuadrantChart(quadRes.products || []);
+        renderRevenueChart(revRes.products || []);
+        renderSpecsTable(specRes.specs || []);
 
         loading.style.display = 'none';
         content.style.display = 'block';
@@ -130,15 +139,89 @@ function renderGeoChart(data) {
     }, { responsive: true, displayModeBar: false });
 }
 
-function renderPlaceholderCharts() {
-    // Placeholder for quadrant and revenue charts
-    // These will be populated by chat agent responses
-    ['chart-quadrant', 'chart-revenue'].forEach(id => {
-        document.getElementById(id).innerHTML = `
-            <div style="display:flex;align-items:center;justify-content:center;height:250px;color:#94a3b8;font-size:0.85rem;">
-                💬 Tanya agen untuk analisis ini
-            </div>`;
+function renderQuadrantChart(products) {
+    if (!products || !products.length) return;
+    const subcats = [...new Set(products.map(p => p.subcategory))];
+    const traces = subcats.map((sc, i) => {
+        const pts = products.filter(p => p.subcategory === sc);
+        return {
+            type: 'scatter', mode: 'markers',
+            name: sc,
+            x: pts.map(p => p.sold_count),
+            y: pts.map(p => p.rating),
+            text: pts.map(p => p.name.substring(0, 30)),
+            marker: { size: 8, color: CHART_COLORS[i % CHART_COLORS.length], opacity: 0.7 },
+        };
     });
+
+    // Quadrant lines
+    const maxX = Math.max(...products.map(p => p.sold_count));
+    const shapes = [
+        { type: 'line', x0: maxX / 2, x1: maxX / 2, y0: 0, y1: 5, line: { color: '#e2e8f0', dash: 'dash', width: 1 } },
+        { type: 'line', x0: 0, x1: maxX, y0: 3.5, y1: 3.5, line: { color: '#e2e8f0', dash: 'dash', width: 1 } },
+    ];
+
+    // Quadrant labels
+    const annotations = [
+        { x: maxX * 0.75, y: 4.5, text: '⭐ Winning Formula', showarrow: false, font: { size: 10, color: '#059669' } },
+        { x: maxX * 0.25, y: 4.5, text: '💎 Hidden Gem', showarrow: false, font: { size: 10, color: '#2563eb' } },
+        { x: maxX * 0.75, y: 1.5, text: '⚠️ Volume Only', showarrow: false, font: { size: 10, color: '#d97706' } },
+        { x: maxX * 0.25, y: 1.5, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
+    ];
+
+    Plotly.newPlot('chart-quadrant', traces, {
+        ...CHART_LAYOUT,
+        xaxis: { title: 'Demand (sold_count)', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Quality (rating)', range: [0, 5.2], gridcolor: '#e2e8f0' },
+        shapes, annotations,
+        height: 300,
+    }, { responsive: true, displayModeBar: false });
+}
+
+function renderRevenueChart(products) {
+    if (!products || !products.length) return;
+    const subcats = [...new Set(products.map(p => p.subcategory))];
+    const traces = subcats.map((sc, i) => {
+        const pts = products.filter(p => p.subcategory === sc);
+        return {
+            type: 'scatter', mode: 'markers',
+            name: sc,
+            x: pts.map(p => p.price),
+            y: pts.map(p => p.sold_count),
+            text: pts.map(p => `${p.name.substring(0, 25)}\nRev: Rp ${(p.estimated_revenue / 1e6).toFixed(1)}M`),
+            marker: { size: 8, color: CHART_COLORS[i % CHART_COLORS.length], opacity: 0.7 },
+        };
+    });
+
+    Plotly.newPlot('chart-revenue', traces, {
+        ...CHART_LAYOUT,
+        xaxis: { title: 'Harga (IDR)', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Terjual', gridcolor: '#e2e8f0' },
+        height: 300,
+    }, { responsive: true, displayModeBar: false });
+}
+
+function renderSpecsTable(specs) {
+    const container = document.getElementById('chart-specs');
+    if (!container || !specs || !specs.length) return;
+
+    const grouped = {};
+    specs.forEach(s => {
+        if (!grouped[s.subcategory]) grouped[s.subcategory] = [];
+        grouped[s.subcategory].push(s);
+    });
+
+    let html = '<div style="max-height:300px;overflow-y:auto;">';
+    for (const [subcat, items] of Object.entries(grouped)) {
+        html += `<div style="font-weight:600;margin:8px 0 4px;color:#334155;">${subcat.toUpperCase()}</div>`;
+        html += '<table class="data-table"><thead><tr><th>Rasa</th><th>Berat</th><th>Total Terjual</th><th>Produk</th></tr></thead><tbody>';
+        items.slice(0, 5).forEach(s => {
+            html += `<tr><td>${escapeHtml(s.flavor)}</td><td>${escapeHtml(s.weight || '-')}</td><td>${s.total_sold.toLocaleString()}</td><td>${s.count}</td></tr>`;
+        });
+        html += '</tbody></table>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
 }
 
 // ---------------------------------------------------------------------------
