@@ -20,7 +20,7 @@
 
 ### Key Points
 1. **The problem:** Di bisnis general trade, menentukan produk yang tepat untuk dikembangkan itu sulit. Data tersebar di marketplace, tidak terpusat, dan sulit dikumpulkan oleh non-technical team.
-2. **The dataset:** 672 produk food & beverage dari Tokopedia — cokelat, permen, snack — tersebar di 32 kota Jawa. Harga, rating, jumlah terjual, lokasi penjual.
+2. **The dataset:** 1,317 produk food & beverage dari Tokopedia — cokelat, permen, snack — tersebar di 32 kab/kota, 5 provinsi. Harga, rating, jumlah terjual, lokasi penjual.
 3. **Why F&B:** Kategori dengan volume tinggi, harga terjangkau, target pasar muda. Data paling kaya di Tokopedia.
 4. **Key limitation:** Data diambil satu titik waktu (bukan real-time). Hanya Tokopedia (Shopee/Blibli blocked by anti-bot). Ini revenue proxy (harga × terjual), bukan profit margin.
 
@@ -30,7 +30,7 @@
 >
 > Biasanya, tim akan buka Tokopedia satu-satu, screenshot produk, masukin ke spreadsheet, rapat berjam-jam. Butuh berminggu-minggu.
 >
-> GT Intelligence mengganti proses itu. Kami scrape 672 produk dari Tokopedia — cokelat, permen, snack — dari 32 kota di Jawa. Data ini langsung masuk ke sistem yang bisa ditanya pakai bahasa sehari-hari.
+> GT Intelligence mengganti proses itu. Kami scrape 1,317 produk dari Tokopedia — cokelat, permen, snack — dari 32 kab/kota di 5 provinsi Indonesia. Data ini langsung masuk ke sistem yang bisa ditanya pakai bahasa sehari-hari.
 >
 > Kenapa F&B? Karena volumenya tinggi, harganya terjangkau, targetnya anak muda. Dan data Tokopedia paling kaya di kategori ini.
 >
@@ -58,9 +58,9 @@ User (Browser) ← FastAPI + HTML/CSS/JS ← GTAgent ← DuckDB ← products.db
 1. **Scrape:** tokopaedi library — mobile API spoofing bypasses Akamai. Rate-limited, respectful.
 2. **Staging:** Raw JSON disimpan dulu sebelum transformasi. Kalau cleaning ada bug, re-run dari staging.
 3. **Clean:** Deduplicate, normalisasi harga ("Rp 15.000" → 15000), konversi sold_count ("1rb+" → 1000), filter Java Island.
-4. **LLM Parse:** OpenAI-compatible API (configurable via `.env`) mengekstrak flavor/weight/variant dari nama produk. Batch processing, ~$0.01 untuk 672 produk.
+4. **LLM Parse:** OpenAI-compatible API (configurable via `.env`) mengekstrak flavor/weight/variant dari nama produk. Batch processing, ~$0.01 untuk 1,317 produk.
 5. **Validate:** 7 checks — schema, types, nulls, ranges, dedup, geography, row count.
-6. **SQLite:** 672 baris, 14 kolom. File-based, portable.
+6. **SQLite:** 1,317 baris, 19 kolom. File-based, portable.
 
 **Query Flow (Online — how the agent works):**
 1. User bertanya dalam bahasa Indonesia
@@ -72,7 +72,7 @@ User (Browser) ← FastAPI + HTML/CSS/JS ← GTAgent ← DuckDB ← products.db
 
 **Why each tool:**
 - **tokopaedi:** Satu-satunya cara bypass Akamai (7 cara dicoba, hanya ini yang berhasil)
-- **SQLite:** Zero setup, portable, cukup untuk 672 baris single user
+- **SQLite:** Zero setup, portable, cukup untuk 1,317 baris single user
 - **DuckDB:** Query engine cepat, bisa load SQLite langsung via ATTACH
 - **OpenAI-compatible API (SumoPod DeepSeek V4 Flash):** Default model, configurable ke O3-Mini via `.env`
 - **Custom FastAPI + HTML/CSS/JS:** Dashboard-first, smooth UX, collapsible chat panel
@@ -85,7 +85,7 @@ User (Browser) ← FastAPI + HTML/CSS/JS ← GTAgent ← DuckDB ← products.db
 >
 > Langkah 2: Staging. Raw JSON kami simpan dulu. Kenapa? Kalau di langkah 3 ada bug di cleaning logic, kami bisa re-run dari staging tanpa scrape ulang.
 >
-> Langkah 3-4: Cleaning dan LLM Parse. Untuk parse rasa, berat, varian dari nama produk — kami pakai OpenAI-compatible API. Konfigurasi lewat .env file, jadi bisa ganti model kapan saja. Biaya sekitar 1 sen untuk 672 produk.
+> Langkah 3-4: Cleaning dan LLM Parse. Untuk parse rasa, berat, varian dari nama produk — kami pakai OpenAI-compatible API. Konfigurasi lewat .env file, jadi bisa ganti model kapan saja. Biaya sekitar 1 sen untuk 1,317 produk.
 >
 > Langkah 5: Validasi. 7 checks — semua harus pass sebelum data masuk SQLite.
 >
@@ -97,7 +97,7 @@ User (Browser) ← FastAPI + HTML/CSS/JS ← GTAgent ← DuckDB ← products.db
 
 ## Slide 3: Analytics Insights
 
-**Title:** "Apa yang Data Ceritakan: Temuan Utama dari 672 Produk"
+**Title:** "Apa yang Data Ceritakan: Temuan Utama dari 1,317 Produk"
 
 ### Visual
 - 4 quadrant layout:
@@ -163,10 +163,10 @@ User (Browser) ← FastAPI + HTML/CSS/JS ← GTAgent ← DuckDB ← products.db
    - Business context: mapping istilah Indonesia ke SQL ("terlaris" → ORDER BY sold_count DESC)
    - Data dictionary: definisi setiap kolom dan maknanya
    - Aturan pertanyaan yang tidak bisa dijawab (profit margin, prediksi, data pembeli)
-   - Schema lengkap tabel products (14 kolom)
+   - Schema lengkap tabel products (19 kolom)
    - Dataset stats: jumlah produk, subkategori, kota, range harga
 
-   Ini prompt engineering, bukan semantic layer. Tapi untuk schema sederhana (1 tabel, 14 kolom), prompt engineering cukup efektif.
+   Ini prompt engineering, bukan semantic layer. Tapi untuk schema sederhana (1 tabel, 19 kolom), prompt engineering cukup efektif.
 
 2. **ReAct Loop (Reason-Act-Observe)** — Bukan single-shot. Agent mengklasifikasi intent:
    - `direct_answer` → langsung generate SQL
@@ -185,7 +185,7 @@ User (Browser) ← FastAPI + HTML/CSS/JS ← GTAgent ← DuckDB ← products.db
 - Mekanisme: LLM mengembalikan `is_unanswerable: true` dalam JSON response, agent menampilkan pesan penolakan yang sopan.
 
 **Why This Works for Our Use Case**
-- Schema kami trivial: 1 tabel, 14 kolom, tidak ada JOINs. Prompt engineering cukup untuk grounding.
+- Schema kami trivial: 1 tabel, 19 kolom, tidak ada JOINs. Prompt engineering cukup untuk grounding.
 - BIRD-Interact benchmark 2026: semua model dapat 94%+ akurasi SQL untuk query sederhana.
 - Auto-retry menangani error SQL tanpa user sadar.
 - Model configurable via `.env` — bisa ganti dari DeepSeek ke O3-Mini atau gpt-4o-mini tanpa ubah kode.
@@ -196,13 +196,13 @@ User (Browser) ← FastAPI + HTML/CSS/JS ← GTAgent ← DuckDB ← products.db
 >
 > Sejujurnya: kami tidak pakai semantic layer seperti WrenAI. Yang kami pakai adalah prompt engineering yang solid. System prompt kami berisi business context — misalnya, 'terlaris' berarti ORDER BY sold_count DESC. Plus data dictionary yang mendefinisikan setiap kolom, dan aturan untuk pertanyaan yang tidak bisa dijawab.
 >
-> Untuk schema sederhana kami — 1 tabel, 14 kolom — ini cukup. Di benchmark TokenMix tahun 2026, semua model LLM dapat 94%+ akurasi untuk SQL sederhana. Tidak perlu framework berat.
+> Untuk schema sederhana kami — 1 tabel, 19 kolom — ini cukup. Di benchmark TokenMix tahun 2026, semua model LLM dapat 94%+ akurasi untuk SQL sederhana. Tidak perlu framework berat.
 >
 > Yang membuat agent ini lebih dari single-shot adalah ReAct loop. Sebelum generate SQL, agent mengklasifikasi pertanyaan: apakah ini langsung bisa dijawab, perlu eksplorasi dulu, atau ambigu dan perlu klarifikasi? Kalau pertanyaan ambigu, agent tanya balik. Kalau perlu eksplorasi, agent query dulu untuk memahami data. Max 3 iterasi.
 >
 > Dan yang paling penting: pertanyaan yang tidak bisa dijawab. 'Berapa profit margin?' — jawabannya: 'Data kami hanya punya harga jual, bukan cost.' Tidak dibuat-buat, tidak ditebak.
 >
-> Model default kami DeepSeek V4 Flash dari SumoPod. Tapi ini configurable — satu baris di .env file bisa ganti ke O3-Mini atau gpt-4o-mini. Biaya untuk 672 produk dan demo: gratis di SumoPod.
+> Model default kami DeepSeek V4 Flash dari SumoPod. Tapi ini configurable — satu baris di .env file bisa ganti ke O3-Mini atau gpt-4o-mini. Biaya untuk 1,317 produk dan demo: gratis di SumoPod.
 
 ---
 
@@ -219,11 +219,11 @@ User (Browser) ← FastAPI + HTML/CSS/JS ← GTAgent ← DuckDB ← products.db
 ### Key Points
 
 **Deliberate Trade-offs (Apa yang Kami Sadar)**
-- SQLite vs PostgreSQL → SQLite cukup untuk 672 baris, zero setup, portable
+- SQLite vs PostgreSQL → SQLite cukup untuk 1,317 baris, zero setup, portable
 - Prompt engineering vs semantic layer → Schema sederhana, prompt engineering cukup. MDL manifest ada di codebase tapi tidak diaktifkan — overkill untuk 1 tabel.
 - gpt-4o-mini vs frontier model → Untuk SQL sederhana, semua model 94%+. DeepSeek gratis, cukup.
 - Custom UI vs React/Next.js → 3 hari sprint, FastAPI + HTML/CSS/JS cepat untuk dashboard + chat
-- Single marketplace vs multi → Tokopedia saja sudah 672 produk, multi-marketplace butuh proxy rotation
+- Single marketplace vs multi → Tokopedia saja sudah 1,317 produk, multi-marketplace butuh proxy rotation
 - Revenue proxy vs profit margin → Cost data tidak tersedia dari marketplace
 
 **What's Not Production-Ready**
@@ -254,7 +254,7 @@ User (Browser) ← FastAPI + HTML/CSS/JS ← GTAgent ← DuckDB ← products.db
 
 > "Terakhir, apa yang kami pelajari.
 >
-> Beberapa trade-off ini disengaja. SQLite? Untuk 672 baris dan single user, PostgreSQL overkill. Prompt engineering vs semantic layer? Untuk 1 tabel dan 14 kolom, prompt engineering cukup. Kami sebenarnya sudah bangun MDL manifest di codebase, tapi tidak diaktifkan — karena over-engineering untuk use case ini. Kalau schema-nya 10 tabel dengan banyak JOINs, baru butuh semantic layer.
+> Beberapa trade-off ini disengaja. SQLite? Untuk 1,317 baris dan single user, PostgreSQL overkill. Prompt engineering vs semantic layer? Untuk 1 tabel dan 19 kolom, prompt engineering cukup. Kami sebenarnya sudah bangun MDL manifest di codebase, tapi tidak diaktifkan — karena over-engineering untuk use case ini. Kalau schema-nya 10 tabel dengan banyak JOINs, baru butuh semantic layer.
 >
 > DeepSeek V4 Flash? Di benchmark TokenMix tahun 2026, semua model dapat 94%+ untuk SQL sederhana. Tidak perlu GPT-5 yang 100x lebih mahal.
 >
