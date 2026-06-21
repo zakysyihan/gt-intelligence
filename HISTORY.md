@@ -342,3 +342,25 @@
 #### Deployed
 - Feature branch: feat/streamlit-dashboard
 - VPS: http://43.133.140.154:8000
+
+---
+
+### Session 7 — June 21, 2026 (Phase 3)
+
+**Goal:** Dashboard upgrade — map, quadrants, metrics
+
+#### Changes
+- Metric cards: replaced avg_price with "Harga Diminati" (price bucket with highest demand)
+- Price chart renamed: "Distribusi Demand per Harga" (Y = sold_count, not product count)
+- Geographic: replaced bar chart with Plotly scatter_mapbox (OpenStreetMap tiles, 32 Java cities)
+- Quadrant 1: Customer Quality (demand vs rating) — median thresholds
+- Quadrant 2: Distribution Level (demand vs store_count) — normalized product names, median thresholds
+- New API endpoints: /api/dashboard/geo-map, /api/dashboard/quadrant-store
+
+#### Future Improvements (documented)
+- review_count for engagement rate quadrant (not available from tokopaedi)
+- Dynamic thresholding with percentile-based or cluster-based splits
+- Fuzzy matching for better product name normalization
+- Real map with GeoJSON boundaries (admin level 2)
+
+#### Merged to main
