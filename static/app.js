@@ -154,8 +154,15 @@ const CHART_LAYOUT = {
     font: { family: 'Inter, sans-serif', size: 12 },
     paper_bgcolor: 'white',
     plot_bgcolor: 'white',
-    margin: { l: 50, r: 20, t: 10, b: 40 },
+    margin: { l: 50, r: 30, t: 10, b: 40 },
 };
+
+// Wrapper: Plotly.newPlot + auto-resize to prevent clipping
+function plotChart(divId, data, layout, config) {
+    Plotly.newPlot(divId, data, layout, config).then(() => {
+        Plotly.Plots.resize(document.getElementById(divId));
+    });
+}
 
 function renderSubcategoryChart(data) {
     if (!data || !data.length) return;
@@ -163,7 +170,7 @@ function renderSubcategoryChart(data) {
     const values = data.map(r => r[1]);
     const colors = labels.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]);
 
-    Plotly.newPlot('chart-subcategory', [{
+    plotChart('chart-subcategory', [{
         type: 'bar', x: labels, y: values,
         marker: { color: colors },
         text: values.map(v => v.toLocaleString()),
@@ -182,7 +189,7 @@ function renderPriceDemandChart(data) {
     const demands = data.map(r => r[1]);
     const counts = data.map(r => r[2]);
 
-    Plotly.newPlot('chart-price', [{
+    plotChart('chart-price', [{
         type: 'bar', x: labels, y: demands,
         marker: { color: '#2563eb' },
         text: demands.map(v => v.toLocaleString()),
@@ -245,7 +252,7 @@ function renderQuadrantChart(products) {
         { x: xMid1, y: yMidLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
     ];
 
-    Plotly.newPlot('chart-quadrant', traces, {
+    plotChart('chart-quadrant', traces, {
         ...CHART_LAYOUT,
         xaxis: { title: 'Demand (sold_count)', gridcolor: '#e2e8f0' },
         yaxis: { title: 'Quality (rating)', range: [0, 5.5], gridcolor: '#e2e8f0' },
@@ -294,7 +301,7 @@ function renderDemandPriceQuadrant(products) {
         { x: xMid1, y: yMidLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
     ];
 
-    Plotly.newPlot('chart-distribution', traces, {
+    plotChart('chart-distribution', traces, {
         ...CHART_LAYOUT,
         xaxis: { title: 'Harga (IDR)', gridcolor: '#e2e8f0' },
         yaxis: { title: 'Demand (terjual)', gridcolor: '#e2e8f0' },
@@ -322,15 +329,8 @@ function toggleChat() {
         btn.textContent = '💬 Buka Chat';
     }
 
-    // Resize all Plotly charts after layout change
-    setTimeout(() => {
-        ['chart-subcategory', 'chart-price', 'chart-quadrant', 'chart-distribution'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el && el.querySelector('.js-plotly-plot')) {
-                Plotly.Plots.resize(el);
-            }
-        });
-    }, 150);
+    // Trigger Plotly resize after layout change
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 200);
 }
 
 async function loadSessions() {
