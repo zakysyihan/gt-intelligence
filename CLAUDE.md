@@ -70,6 +70,26 @@ ssh -i ~/.ssh/gt-intelligence ubuntu@43.133.140.154 "cd /home/ubuntu/gt-intellig
 ssh -i ~/.ssh/gt-intelligence ubuntu@43.133.140.154 "cd /home/ubuntu/gt-intelligence && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt"
 ```
 
+### Visual Verification (After Any UI Change)
+
+After every UI change, take a screenshot on VPS and evaluate it:
+
+```python
+# Run locally — takes screenshot of VPS app
+from playwright.sync_api import sync_playwright
+import time
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    page = browser.new_page(viewport={'width': 1440, 'height': 900})
+    page.goto('http://43.133.140.154:8000', timeout=30000)
+    time.sleep(5)
+    page.screenshot(path='/tmp/gt-screenshot.png', full_page=True)
+    browser.close()
+```
+
+Evaluate the screenshot: layout, spacing, alignment, readability, chart rendering, filter functionality. Fix issues and re-screenshot until satisfied.
+
 ### Deploy Commands
 
 ```bash
