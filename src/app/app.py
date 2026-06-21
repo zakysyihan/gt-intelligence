@@ -132,8 +132,8 @@ def render_dashboard():
     c1, c2, c3, c4 = st.columns(4)
     with c1: st.metric("📦 Total Produk", f"{dash['total_products']:,}")
     with c2: st.metric("🏆 Subkategori Terlaris", top_sub[0], f"{top_sub[1]:,} terjual")
-    with c3: st.metric("💵 Harga Rata-rata", f"Rp {avg_price:,.0f}")
-    with c4: st.metric("📍 Kota di Jawa", f"{dash['java_products']:,}")
+    with c3: st.metric("🏪 Total Toko", f"{dash['total_shops']:,}")
+    with c4: st.metric("📍 Total Kota", f"{dash['total_cities']:,}")
 
     st.divider()
 

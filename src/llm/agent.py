@@ -372,9 +372,13 @@ Question: {question}""",
             "SELECT AVG(price) FROM products"
         ).fetchone()[0]
 
-        dash["java_products"] = self.con.execute(
-            "SELECT COUNT(*) FROM products"
-        ).fetchone()[0]  # All are Java Island
+        dash["total_shops"] = self.con.execute(
+            "SELECT COUNT(DISTINCT shop_name) FROM products"
+        ).fetchone()[0]
+
+        dash["total_cities"] = self.con.execute(
+            "SELECT COUNT(DISTINCT shop_location) FROM products"
+        ).fetchone()[0]
 
         # Chart 1: Subcategory demand ranking
         dash["subcategory_demand"] = self.con.execute(
