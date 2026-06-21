@@ -175,6 +175,7 @@ function renderSubcategoryChart(data) {
         marker: { color: colors },
         text: values.map(v => v.toLocaleString()),
         textposition: 'outside',
+        cliponaxis: false,
     }], {
         ...CHART_LAYOUT,
         yaxis: { title: 'Total Terjual', gridcolor: '#e2e8f0' },
@@ -194,6 +195,7 @@ function renderPriceDemandChart(data) {
         marker: { color: '#2563eb' },
         text: demands.map(v => v.toLocaleString()),
         textposition: 'outside',
+        cliponaxis: false,
         name: 'Total Demand',
     }], {
         ...CHART_LAYOUT,
