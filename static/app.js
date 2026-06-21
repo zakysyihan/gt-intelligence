@@ -107,17 +107,17 @@ async function loadDashboard() {
     try {
         const fp = getFilterParams();
         const qs = fp ? `?${fp}` : '';
-        const [dashRes, quadRes, storeRes] = await Promise.all([
+        const [dashRes, quadRes, revRes] = await Promise.all([
             fetch(`${API}/api/dashboard${qs}`).then(r => r.json()),
             fetch(`${API}/api/dashboard/quadrant${qs}`).then(r => r.json()),
-            fetch(`${API}/api/dashboard/quadrant-store${qs}`).then(r => r.json()),
+            fetch(`${API}/api/dashboard/revenue${qs}`).then(r => r.json()),
         ]);
 
         renderMetrics(dashRes);
         renderSubcategoryChart(dashRes.subcategory_demand);
         renderPriceDemandChart(dashRes.price_demand);
         renderQuadrantChart(quadRes.products || []);
-        renderDistributionQuadrant(storeRes.products || []);
+        renderDemandPriceQuadrant(revRes.products || []);
 
         loading.style.display = 'none';
         content.style.display = 'block';
@@ -134,14 +134,13 @@ function renderMetrics(dash) {
         { label: '📦 Total Produk', value: (dash.total_products || 0).toLocaleString() },
         { label: '🏪 Total Toko', value: (dash.total_shops || 0).toLocaleString() },
         { label: '📍 Total Kota', value: (dash.total_cities || 0).toLocaleString() },
-        { label: '💰 Harga Diminati', value: harga[0], delta: `${(harga[1] || 0).toLocaleString()} terjual` },
+        { label: '💰 Harga Diminati', value: harga[0] },
     ];
 
     grid.innerHTML = metrics.map(m => `
         <div class="metric-card">
             <div class="metric-label">${m.label}</div>
             <div class="metric-value">${m.value}</div>
-            ${m.delta ? `<div class="metric-delta">↑ ${m.delta}</div>` : ''}
         </div>
     `).join('');
 }
@@ -224,17 +223,24 @@ function renderQuadrantChart(products) {
     const medX = median(soldCounts);
     const medY = median(ratings);
     const maxX = Math.max(...soldCounts);
+    const padX = maxX * 0.05;
 
     const shapes = [
         { type: 'line', x0: medX, x1: medX, y0: 0, y1: 5.5, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: 0, x1: maxX, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: 0, x1: maxX + padX, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
+    // Place labels at the center of each quadrant
+    const xMid1 = medX / 2;
+    const xMid2 = medX + (maxX - medX) / 2;
+    const yMidLow = medY / 2;
+    const yMidHigh = medY + (5.5 - medY) / 2;
+
     const annotations = [
-        { x: medX + (maxX - medX) * 0.5, y: 5.2, text: '⭐ Winning Formula', showarrow: false, font: { size: 10, color: '#059669' } },
-        { x: medX * 0.5, y: 5.2, text: '💎 Hidden Gem', showarrow: false, font: { size: 10, color: '#2563eb' } },
-        { x: medX + (maxX - medX) * 0.5, y: 0.3, text: '⚠️ Volume Only', showarrow: false, font: { size: 10, color: '#d97706' } },
-        { x: medX * 0.5, y: 0.3, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
+        { x: xMid2, y: yMidHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 10, color: '#059669' } },
+        { x: xMid1, y: yMidHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 10, color: '#2563eb' } },
+        { x: xMid2, y: yMidLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 10, color: '#d97706' } },
+        { x: xMid1, y: yMidLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
     ];
 
     Plotly.newPlot('chart-quadrant', traces, {
@@ -246,7 +252,7 @@ function renderQuadrantChart(products) {
     }, { responsive: true, displayModeBar: false });
 }
 
-function renderDistributionQuadrant(products) {
+function renderDemandPriceQuadrant(products) {
     if (!products || !products.length) return;
     const subcats = [...new Set(products.map(p => p.subcategory))];
     const traces = subcats.map((sc, i) => {
@@ -254,36 +260,42 @@ function renderDistributionQuadrant(products) {
         return {
             type: 'scatter', mode: 'markers',
             name: sc,
-            x: pts.map(p => p.sold_count),
-            y: pts.map(p => p.store_count),
+            x: pts.map(p => p.price),
+            y: pts.map(p => p.sold_count),
             text: pts.map(p => p.name.substring(0, 25)),
             marker: { size: 8, color: CHART_COLORS[i % CHART_COLORS.length], opacity: 0.7 },
         };
     });
 
-    const soldCounts = products.map(p => p.sold_count);
-    const storeCounts = products.map(p => p.store_count);
-    const medX = median(soldCounts);
-    const medY = median(storeCounts);
-    const maxX = Math.max(...soldCounts);
-    const maxY = Math.max(...storeCounts);
+    const prices = products.map(p => p.price);
+    const sold = products.map(p => p.sold_count);
+    const medX = median(prices);
+    const medY = median(sold);
+    const maxX = Math.max(...prices);
+    const maxY = Math.max(...sold);
+    const padX = maxX * 0.05;
 
     const shapes = [
-        { type: 'line', x0: medX, x1: medX, y0: 0, y1: maxY * 1.1, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: 0, x1: maxX, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: medX, x1: medX, y0: 0, y1: maxY * 1.05, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: 0, x1: maxX + padX, y0: medY, y1: medY, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
+    const xMid1 = medX / 2;
+    const xMid2 = medX + (maxX - medX) / 2;
+    const yMidLow = medY / 2;
+    const yMidHigh = medY + (maxY - medY) / 2;
+
     const annotations = [
-        { x: medX + (maxX - medX) * 0.5, y: maxY * 1.05, text: '🌐 Mass Market', showarrow: false, font: { size: 10, color: '#059669' } },
-        { x: medX * 0.5, y: maxY * 1.05, text: '🎯 Niche Centralized', showarrow: false, font: { size: 10, color: '#2563eb' } },
-        { x: medX + (maxX - medX) * 0.5, y: 0.5, text: '⚠️ Wide but Weak', showarrow: false, font: { size: 10, color: '#d97706' } },
-        { x: medX * 0.5, y: 0.5, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
+        { x: xMid2, y: yMidHigh, text: '⭐ High Value', showarrow: false, font: { size: 10, color: '#059669' } },
+        { x: xMid1, y: yMidHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 10, color: '#2563eb' } },
+        { x: xMid2, y: yMidLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 10, color: '#d97706' } },
+        { x: xMid1, y: yMidLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
     ];
 
     Plotly.newPlot('chart-distribution', traces, {
         ...CHART_LAYOUT,
-        xaxis: { title: 'Demand (sold_count)', gridcolor: '#e2e8f0' },
-        yaxis: { title: 'Distribution (store_count)', gridcolor: '#e2e8f0' },
+        xaxis: { title: 'Harga (IDR)', gridcolor: '#e2e8f0' },
+        yaxis: { title: 'Demand (terjual)', gridcolor: '#e2e8f0' },
         shapes, annotations,
         height: 300,
     }, { responsive: true, displayModeBar: false });
@@ -307,6 +319,16 @@ function toggleChat() {
         panel.style.display = 'none';
         btn.textContent = '💬 Buka Chat';
     }
+
+    // Resize all Plotly charts after layout change
+    setTimeout(() => {
+        ['chart-subcategory', 'chart-price', 'chart-quadrant', 'chart-distribution'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el.querySelector('.js-plotly-plot')) {
+                Plotly.Plots.resize(el);
+            }
+        });
+    }, 150);
 }
 
 async function loadSessions() {
