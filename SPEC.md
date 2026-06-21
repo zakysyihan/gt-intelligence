@@ -320,11 +320,12 @@ The MDL encodes business logic so the LLM understands what data means:
 ### User Flow
 
 ```
-1. User opens system
-2. Sees predefined dashboard (summary metrics + charts)
-3. Clicks "Chat" to ask deeper questions
-4. Agent answers with data, charts, follow-up suggestions
-5. User can start new chat for different analysis
+1. User opens system → sees dashboard (full width, metrics + charts + filters)
+2. Dashboard has filters: subcategory, location, price range
+3. User clicks chat icon → side panel slides open (25% width)
+4. User creates new analysis or revisits previous session
+5. Agent answers with SQL, data table, chart (clickable to expand), insight, follow-ups
+6. User can minimize chat → dashboard returns to full width
 ```
 
 ### Layout
@@ -377,12 +378,52 @@ The dashboard loads on open. Layout is fixed (4 metric cards + 3 charts), but ev
 | Tren Waktu | Cat 4: Temporal | "Bagaimana pola penjualan mingguan? Apakah ada tren naik atau turun?" |
 | Sinyal Sukses Produk | Cat 5: Product Dev | "Apa spesifikasi produk (rasa, berat, varian) yang paling laris di tiap subkategori? Produk seperti apa yang sebaiknya kami kembangkan?" |
 
-### Chat (WrenAI + Chainlit)
+### Dashboard Layout
 
-- Each conversation is a separate analysis session
-- Agent has WrenAI tools: query data, generate charts, suggest follow-up
-- All answers grounded via MDL semantic layer
+```
+┌──────────────────────────────────────────┬────────────────────┐
+│  Main Area (75%)                         │  Side Panel (25%)  │
+│                                          │  (collapsible)     │
+│  ┌──────────────────────────────────┐    │                    │
+│  │ Filters: Subcategory | City | $  │    │  💬 Analyst Agent  │
+│  └──────────────────────────────────┘    │  [+ New Analysis]  │
+│                                          │                    │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐   │  📋 Analysis 1     │
+│  │Total │ │Top   │ │Avg   │ │Java  │   │  📋 Analysis 2     │
+│  │672   │ │Snacks│ │Rp44k │ │672   │   │                    │
+│  └──────┘ └──────┘ └──────┘ └──────┘   │  Chat messages     │
+│                                          │  with SQL + table  │
+│  ┌─────────────────┐ ┌────────────┐     │  + chart (expand)  │
+│  │Subcat Demand    │ │Price Dist  │     │  + insight         │
+│  └─────────────────┘ └────────────┘     │  + follow-ups      │
+│  ┌─────────────────┐ ┌────────────┐     │                    │
+│  │Geo Distribution │ │Quadrant    │     │  [Input question]  │
+│  │                 │ │Demand×Rate │     │                    │
+│  └─────────────────┘ └────────────┘     │                    │
+│                                          │  [💬] toggle       │
+└──────────────────────────────────────────┴────────────────────┘
+```
+
+### Chat (Side Panel)
+
+- Collapsible side panel (25% width when open, hidden when collapsed)
+- Multi-session: user creates new analysis, previous ones persist
+- Agent queries DuckDB, returns SQL + data table + chart + insight
+- Charts in chat are clickable → expand full-screen modal
 - Follow-up suggestions after each answer
+
+### Dashboard Widgets (8 total)
+
+| Widget | Type | Data |
+|--------|------|------|
+| Market snapshot | 4 metric cards | Products, demand, avg price, avg rating |
+| Subcategory comparison | Grouped bar | Demand + price per subcategory |
+| Price sweet spot | Histogram + avg line | Price distribution |
+| Top 10 cities | Horizontal bar | City demand ranking |
+| Product spec signals | Table | Top flavors/weights per subcategory |
+| Trend analysis | Line chart | Google Trends (rising/declowing subcategories) |
+| Opportunity quadrant | Scatter | Demand vs rating (Quality Gap / Winning Formula / Hidden Gem / Failing) |
+| Revenue proxy | Scatter | Price vs demand per product |
 
 ### Interface Tiers (Target: "Excellent")
 
@@ -426,11 +467,13 @@ The dashboard loads on open. Layout is fixed (4 metric cards + 3 charts), but ev
 - **Apache 2.0 license:** Permissive, no restrictions
 - **Agent-native:** Built for AI agent workflows, not just a library
 
-### Why Chainlit Over Streamlit
+### Why Streamlit + Custom UI Over Chainlit
 
-- **Built for conversational AI:** Chat UI, tool calls, actions out of the box
-- **Agent-native:** Designed for LLM agents, not general-purpose dashboards
-- **Pairs with WrenAI:** Both are agent-focused, natural fit
+- **Chainlit is chat-first by design.** Dashboard-first UX requires dashboard as main view, chat as side panel. Chainlit can't do this natively.
+- **Streamlit for dashboard** — native metric cards, filters, Plotly charts, session state
+- **Custom HTML/CSS/JS** if Streamlit can't achieve the desired smoothness — FastAPI backend + vanilla frontend
+- **Multi-session chat** — `st.session_state` or custom implementation
+- **Chart expansion** — modal/popup when clicking chart in chat
 
 ### MVP vs Production
 
@@ -439,15 +482,15 @@ This section documents what's POC/MVP and what would change in production.
 | Concern | MVP (This Project) | Production (Future) |
 |---------|-------------------|---------------------|
 | Database | SQLite (file-based) | PostgreSQL (concurrent access, millions of rows) |
-| UI | Chainlit (conversational) | Chainlit + custom dashboard for non-chat users |
-| LLM Agent | WrenAI + OpenAI | WrenAI + self-hosted LLM option |
+| UI | Streamlit + custom HTML/CSS/JS | Full React/Next.js frontend |
+| LLM Agent | SumoPod DeepSeek V4 Flash (API) | Self-hosted LLM or fine-tuned SLM |
 | Deployment | Single VPS, Docker Compose | Kubernetes, load balancer, auto-scaling |
 | Scraping | Manual run, tokopaedi mobile API | Scheduled (cron/Airflow), retry logic, distributed, proxy rotation |
 | Scheduling | Manual | Cron job or cloud scheduler |
 | Monitoring | Logs only | Prometheus + Grafana |
 | Authentication | None (single user) | Multi-user auth, RBAC |
 | Data pipeline | Batch (scrape → clean → serve) | Streaming (real-time updates) |
-| Cost | ~$0 (local) | VPS + DB hosting + LLM API costs |
+| Cost | ~Rp 60k/month (VPS only) | VPS + DB hosting + LLM API costs |
 
 **The test case explicitly asks:** "what's included in the POC/MVP" and "what's not production-ready". This table answers both.
 
