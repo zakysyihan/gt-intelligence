@@ -1,6 +1,7 @@
 # ARCHITECTURE.md — GT Intelligence
 
 > Architecture document (3-5 pages). Required deliverable per test case.
+> Last updated: Jun 22, 2026
 
 ---
 
@@ -8,99 +9,116 @@
 
 In general trade businesses, defining the right product to develop is difficult in the initial phase. Product type, specification, pricing, and variance are hard to determine without data. The data needed is scattered across marketplaces, not centralized, and difficult for non-technical people to collect.
 
-**Solution:** GT Intelligence — an LLM-powered market intelligence system that scrapes product data from Indonesian marketplaces, analyzes trends, and provides a natural-language interface for the business team to identify winning products.
+**Solution:** GT Intelligence — an LLM-powered market intelligence system that scrapes product data from Indonesian marketplaces, analyzes trends and pricing patterns, and provides a natural-language interface for the business team to identify winning products.
 
 **User persona:** Business team or product development team in a general trade business who wants to develop a product aimed at winning the market.
 
 ---
 
-## 2. Architecture Overview
+## 2. Architecture Diagram
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        User (Browser)                       │
-│                    http://43.133.140.154:8000                │
-├─────────────────────┬───────────────────────────────────────┤
-│   FastAPI + HTML/CSS/JS│   Analyst Agent (Side Panel)          │
-│   (Dashboard)         │   (Collapsible, multi-session)        │
-│   - Dashboard       │   - Multi-session chat                │
-│   - Metric cards    │   - Text-to-SQL via DeepSeek V4 Flash │
-│   - Plotly charts   │   - Grounded answers + charts         │
-│   - Quick actions   │   - Follow-up suggestions             │
-├─────────────────────┴───────────────────────────────────────┤
-│                     GTAgent (Python)                         │
-│   - OpenAI-compatible API (SumoPod DeepSeek V4 Flash)       │
-│   - Function calling for SQL generation                     │
-│   - Business context (Indonesian terms → SQL mapping)       │
-├─────────────────────────────────────────────────────────────┤
-│                    DuckDB (in-memory)                        │
-│   - SQLite bridge (data_loader.py)                          │
-│   - Query execution                                         │
-├─────────────────────────────────────────────────────────────┤
-│              SQLite (products.db, 672 rows)                  │
-│   - 14 fields + computed columns                            │
-│   - Indexed on subcategory, shop_location                   │
-├─────────────────────────────────────────────────────────────┤
-│                 Data Pipeline (Python)                       │
-│   Scrape (tokopaedi) → Stage → Clean → LLM Parse →         │
-│   Validate → SQLite                                         │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph User
+        U[Browser]
+    end
+
+    subgraph Frontend["FastAPI + HTML/CSS/JS"]
+        D[Dashboard<br/>Metrics + Charts + Filters]
+        C[Chat Side Panel<br/>Agentic Analyst]
+    end
+
+    subgraph Backend["FastAPI Server :8000"]
+        API[REST API]
+        GA[GTAgent<br/>ReAct Loop<br/>Text-to-SQL]
+    end
+
+    subgraph LLM["SumoPod AI"]
+        DS[DeepSeek V4 Flash<br/>OpenAI-compatible]
+    end
+
+    subgraph Data["Query Engine"]
+        DK[DuckDB<br/>in-memory]
+        DB[(SQLite<br/>products.db<br/>1,317 rows)]
+    end
+
+    subgraph Pipeline["Data Pipeline (Python)"]
+        SC[Scrape<br/>tokopaedi]
+        ST[Stage<br/>backup]
+        CL[Clean<br/>normalize]
+        LP[LLM Parse<br/>flavor/weight]
+        VL[Validate<br/>7 checks]
+    end
+
+    subgraph External["External APIs"]
+        TK[Tokopedia API<br/>mobile spoofing]
+        GT[Google Trends<br/>pytrends]
+    end
+
+    U --> D
+    U --> C
+    D --> API
+    C --> GA
+    GA --> DS
+    DS --> GA
+    GA --> DK
+    DK --> DB
+    SC --> TK
+    SC --> ST
+    ST --> CL
+    CL --> LP
+    LP --> VL
+    VL --> DB
 ```
 
 ---
 
 ## 3. Data Flow
 
-### 3.1 Data Ingestion (Offline)
+### 3.1 Data Ingestion (Offline — 6 Steps)
 
-```
-Tokopedia API (tokopaedi library)
-  ↓ Mobile API spoofing (bypasses Akamai)
-  ↓ Search by keyword: cokelat, permen, snack, etc.
-  ↓ Filter: Java Island locations only
-  ↓
-Raw JSON (data/raw/)
-  ↓
-Staging backup (data/staging/)
-  ↓
-Cleaning (cleaner.py):
-  - Deduplicate by product_url
-  - Normalize price (remove "Rp", dots → int)
-  - Normalize sold_count ("1rb+" → 1000)
-  - Parse flavor/weight/variant from product_name
-  - Filter Java Island locations
-  ↓
-LLM Parse (llm_parser.py):
-  - DeepSeek V4 Flash extracts product specs
-  - flavor, weight, variant fields
-  ↓
-Validation (validator.py):
-  - Schema, types, nulls, ranges, dedup, geography, row count
-  - 7 checks, all must pass
-  ↓
-SQLite (data/analytics/products.db)
+```mermaid
+graph LR
+    A[Tokopedia API] -->|tokopaedi library| B[Raw JSON]
+    B -->|backup| C[Staging]
+    C -->|cleaner.py| D[Cleaned CSV]
+    D -->|llm_parser.py| E[LLM Parse]
+    E -->|validator.py| F[SQLite DB]
 ```
 
-### 3.2 Query Flow (Online)
+1. **Scrape** — `tokopaedi` library spoofs mobile API to bypass Akamai bot protection. Searches by keyword, collects product data.
+2. **Stage** — Raw JSON copied to staging as backup. If cleaning has a bug, re-run from staging without re-scraping.
+3. **Clean** — Deduplicate by product_url, normalize prices, convert sold_count, parse specs, add category + province mapping.
+4. **LLM Parse** — DeepSeek V4 Flash extracts flavor/weight/variant from product names (batch processing, ~$0.01).
+5. **Validate** — 7 checks: schema, types, nulls, ranges, dedup, geography, row count. All must pass.
+6. **Curate** — Write to SQLite with indexes on subcategory and province.
 
+### 3.2 Query Flow (Online — Agentic)
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as GTAgent
+    participant L as DeepSeek V4
+    participant D as DuckDB
+    participant S as SQLite
+
+    U->>A: "Produk cokelat terlaris?"
+    A->>L: Classify intent + generate SQL
+    L->>A: {intent: "direct_answer", sql: "SELECT..."}
+    A->>D: Execute SQL
+    D->>S: Query products.db
+    S->>D: Results
+    D->>A: Data rows
+    A->>L: Generate insight from data
+    L->>A: "Produk cokelat terlaris adalah..."
+    A->>U: Data table + insight + follow-ups
 ```
-User question (Indonesian)
-  ↓
-GTAgent.ask(question)
-  ↓
-OpenAI function calling (SumoPod DeepSeek V4 Flash)
-  - System prompt: business context, data dictionary, unanswerable rules
-  - Schema manifest: table name, columns, types
-  - Function: run_sql(query)
-  ↓
-Generated SQL → DuckDB executes against SQLite
-  ↓
-Results → Agent interprets → Insight (Indonesian)
-  ↓
-Follow-up suggestions
-  ↓
-Streamlit or FastAPI renders: SQL, data table, Plotly chart, insight text
-```
+
+**Agentic capabilities:**
+- Intent classification: direct_answer, needs_exploration, needs_clarification, chain_queries
+- Auto-retry on SQL errors (max 3 iterations)
+- Unanswerable detection (profit margin, buyer data, predictions)
 
 ---
 
@@ -108,38 +126,20 @@ Streamlit or FastAPI renders: SQL, data table, Plotly chart, insight text
 
 | Layer | Tool | Why |
 |-------|------|-----|
-| Data scraping | Python + tokopaedi | Mobile API spoofing bypasses Akamai bot protection |
-| Data storage | SQLite | File-based, zero setup, 1000 rows, portable |
+| Data scraping | Python + `tokopaedi` | Mobile API spoofing bypasses Akamai |
+| Data storage | SQLite | File-based, zero setup, 1,317 rows, portable |
 | Data processing | Pandas | Industry standard, easy to explain |
-| LLM Agent | SumoPod DeepSeek V4 Flash | Free, OpenAI-compatible, adequate for simple SQL |
-| Fallback LLM | O3-Mini ($0.06/task) | Best value if DeepSeek quality insufficient |
-| Interface | FastAPI + HTML/CSS/JS (custom) | Dashboard-first, collapsible chat side panel, smooth UX |
-| Backup UI | Streamlit (port 8501) | Fallback if custom UI fails |
-| Visualization | Plotly | Interactive charts, st.dialog modal for expansion |
-| Containerization | Docker + Docker Compose | Single container, simple deployment |
-| Deployment | SumoPod VPS (Jakarta) | 2vCPU/2GB/40GB, Rp 60k/month |
+| LLM Agent | SumoPod DeepSeek V4 Flash | Free, OpenAI-compatible, 94%+ SQL accuracy on simple schemas |
+| Interface | FastAPI + HTML/CSS/JS | Dashboard-first, smooth UX, full control |
+| Visualization | Plotly | Interactive charts, scatter plots for quadrants |
+| Containerization | Docker | Single container, simple deployment |
+| Deployment | SumoPod VPS Jakarta | 2vCPU/2GB/40GB, Rp 60k/month |
 
-### Why Custom UI Over Streamlit/Chainlit
+### Key Decision: Prompt Engineering vs Semantic Layer
 
-- **Chainlit is chat-first by design.** Dashboard-first UX requires dashboard as main view, chat as side panel. Chainlit can't do this natively.
-- **Streamlit is functional but not smooth.** Reruns on every interaction, limited CSS control, no true collapsible side panel.
-- **Custom HTML/CSS/JS + FastAPI** gives full control over UX: smooth transitions, collapsible chat, chart modals, responsive layout.
-- **Not Metabase:** Adds another service. We need dashboard + LLM chat in one app.
+Our schema is trivial — 1 table, 19 columns, no JOINs. We use **prompt engineering** with a structured system prompt (business context, data dictionary, SQL rules) instead of a semantic layer like WrenAI MDL.
 
-### Why SQLite Over PostgreSQL
-
-- MVP scope: 1000 rows, single user, no concurrent writes
-- Zero setup: file-based, no server needed
-- Portable: ship the .db file
-- PostgreSQL would be the production choice — documented in MVP vs Production table
-
-### Why DeepSeek Over GPT-4o
-
-- Free on SumoPod (zero cost)
-- Our schema is trivial: 1 table, 14 columns, no JOINs
-- TokenMix benchmark: all models score 94%+ on simple SQL
-- WrenAI compensates: dry-plan validates SQL, guided mode forces workflow
-- Switching cost: one env var change
+TokenMix benchmark (2026): all LLMs score 94%+ on simple SQL. A semantic layer is overkill for this schema. If the schema grows to 10+ tables with JOINs, we'd adopt WrenAI MDL.
 
 ---
 
@@ -148,21 +148,24 @@ Streamlit or FastAPI renders: SQL, data table, Plotly chart, insight text
 ```sql
 CREATE TABLE products (
     timestamp TEXT,          -- When scraped
+    shop_location TEXT,      -- City/Kabupaten (original)
+    shop_city TEXT,          -- Normalized city name
+    shop_province TEXT,      -- Province (mapped from city)
     product_name TEXT,       -- Full product title
+    category TEXT,           -- e.g., "Makanan & Minuman"
     subcategory TEXT,        -- chocolate, candy, snacks
     price INTEGER,           -- Price in IDR
-    sold_count INTEGER,      -- Monthly sales
     rating REAL,             -- Average rating (0-5)
-    review_count INTEGER,    -- Number of reviews
+    sold_count INTEGER,      -- Monthly sales
+    review_count INTEGER,    -- Number of reviews (all zero — API limitation)
     shop_name TEXT,          -- Seller name
-    shop_location TEXT,      -- City in Java Island
+    shop_rating REAL,        -- Seller rating (0 — API limitation)
     product_url TEXT,        -- Product link (unique)
     flavor TEXT,             -- Parsed from product_name (best-effort)
     weight TEXT,             -- Parsed from product_name (best-effort)
     variant TEXT,            -- Parsed from product_name (best-effort)
-    price_bucket TEXT,       -- cheap/mid/expensive (computed)
-    rating_category TEXT,    -- low/medium/high (computed)
-    estimated_revenue REAL   -- price × sold_count (computed)
+    price_bucket TEXT,       -- Computed: cheap/mid/expensive
+    rating_category TEXT     -- Computed: low/medium/high
 );
 ```
 
@@ -173,8 +176,8 @@ CREATE TABLE products (
 | Risk | Mitigation |
 |------|-----------|
 | API keys exposed | .env file, never committed, gitignored |
-| LLM hallucination | SQL grounding — LLM only queries data, never free-form answers |
-| Unanswerable questions | Structured refusal with explanation |
+| LLM hallucination | SQL grounding — LLM generates SQL, DuckDB executes it. Never free-form answers. |
+| Unanswerable questions | Structured refusal with specific explanation |
 | No PII in data | Public product listings only, no user data |
 | VPS access | SSH key-based auth only, no passwords |
 
@@ -185,33 +188,36 @@ CREATE TABLE products (
 | Concern | MVP (This Project) | Production (Future) |
 |---------|-------------------|---------------------|
 | Database | SQLite (file-based) | PostgreSQL (concurrent, millions of rows) |
-| UI | FastAPI + custom HTML/CSS/JS (single container) | Full React/Next.js frontend |
-| LLM | SumoPod DeepSeek V4 Flash (API) | Self-hosted LLM or fine-tuned SLM |
-| Scraping | Manual run, tokopaedi library | Scheduled (Airflow), proxy rotation, multi-marketplace |
+| UI | FastAPI + custom HTML/CSS/JS | Full React/Next.js frontend |
+| LLM | SumoPod DeepSeek V4 Flash | Self-hosted LLM or fine-tuned SLM |
+| Scraping | Manual run, tokopaedi | Scheduled (cron → Airflow), proxy rotation, multi-marketplace |
 | Auth | None (single user) | Multi-user, RBAC |
 | Monitoring | Logs only | Prometheus + Grafana |
-| Cost | ~Rp 60k/month (VPS only) | VPS + DB + LLM API costs |
+| Transformation | Python scripts | dbt (lineage, version control, auto-docs) |
+| Cost | ~Rp 60k/month (VPS only) | VPS + DB + LLM API + monitoring costs |
 
 ---
 
 ## 8. Known Limitations
 
-1. **Data freshness:** Scraped at one point in time, not real-time
-2. **Single marketplace:** Only Tokopedia, not Shopee/Bukalapak (Akamai blocks server-side scraping)
-3. **No profit margin:** Revenue proxy (price × demand), not true profitability
-4. **Product spec parsing:** 40-65% null for flavor/weight/variant (best-effort from titles)
-5. **Seller location, not buyer:** Demand signals from seller geography
-6. **Missing sweets subcategory:** Tokopedia didn't return results
-7. **No shop_rating:** Tokopedia API doesn't expose this field
+| Limitation | Impact | Mitigation |
+|-----------|--------|-----------|
+| Data snapshot (one point in time) | No real sales trends | Future: periodic scraping for time-series |
+| Single marketplace (Tokopedia) | Shopee/Blibli blocked by Akamai | Documented; multi-marketplace is future improvement |
+| No profit margin data | Revenue proxy (price × demand) only | Documented as limitation |
+| review_count = 0 | No engagement signal | Rating used as alternative quality signal |
+| Product spec parsing ~60% accuracy | Some flavor/weight/variant fields null | Documented as best-effort extraction |
+| Seller location, not buyer | Geographic proxy only | Documented |
 
 ---
 
 ## 9. Future Improvements
 
-1. Scrape multiple marketplaces (Shopee with residential proxy)
-2. Time-series analysis (periodic scraping for real trends)
-3. Profit margin estimation (with cost data input)
-4. Demand forecasting model
-5. Multi-language support (Indonesian/English)
-6. Fine-tuned SLM for SQL generation (Qwen3-6B)
-7. Multi-user auth and RBAC
+1. **Multi-marketplace scraping** (Shopee, Bukalapak with residential proxy)
+2. **Time-series data** (weekly scraping for real trend analysis)
+3. **Profit margin estimation** (with cost data input from business team)
+4. **Geographic visualization** (scatter_mapbox with city coordinates)
+5. **Product spec table** (top flavors/weights per subcategory)
+6. **Fine-tuned SLM** (Qwen3-6B for SQL generation)
+7. **dbt transformation layer** (lineage tracking, version control)
+8. **Multi-user auth + RBAC**
