@@ -397,3 +397,40 @@ Thresholds are **static/global** — not affected by filters. Crosshair position
 - Product Spec Signals section removed
 - cliponaxis:false for bar chart labels
 - Auto-resize Plotly charts on filter/chat toggle
+
+#### Merged to main
+
+---
+
+### Session 9 — Monday Jun 22, 2026 (SUBMISSION)
+
+**Goal:** Final polish, docs, slides, submission
+**Status:** ✅ SUBMITTED
+
+#### Final Changes
+- Architecture doc: full rewrite with 3 Mermaid diagrams
+- README: dataset reference section, accurate numbers
+- Streamlit completely removed from codebase
+- Domain configured: gt-intelligence.biz.id
+- Presentation slides created
+- Demo video recorded and submitted
+
+#### Final Deliverables
+
+| Deliverable | Status | Link |
+|------------|--------|------|
+| Git repository | ✅ | https://github.com/zakysyihan/gt-intelligence |
+| Live demo | ✅ | http://gt-intelligence.biz.id |
+| Architecture document | ✅ | docs/ARCHITECTURE.md |
+| Presentation | ✅ | submission/ |
+| Demo video | ✅ | Submitted |
+
+---
+
+## Project Summary
+
+**What:** GT Intelligence — LLM-powered market intelligence for general trade businesses.
+**When:** 3 working days (Jun 19-22, 2026)
+**Stack:** Python, FastAPI, HTML/CSS/JS, DuckDB, SQLite, DeepSeek V4 Flash, Docker
+**Data:** 1,317 products, 19 fields, 33 cities, 5 provinces
+**Team:** Kilo Code (planning) + 3 Claude Code terminals (parallel execution)
