@@ -383,14 +383,10 @@ Current question: {question}""",
                 )
                 return response
 
-            # --- Intent: needs_clarification ---
+            # --- Intent: needs_clarification → force direct_answer instead ---
+            # Always try SQL first. Clarification leads to empty responses.
             if intent == "needs_clarification":
-                response.is_clarifying = True
-                response.clarifying_question = result.get(
-                    "clarifying_question",
-                    "Bisa jelaskan lebih spesifik tentang apa yang ingin Anda ketahui?",
-                )
-                return response
+                intent = "direct_answer"
 
             # --- Intent: needs_exploration ---
             if intent == "needs_exploration":
