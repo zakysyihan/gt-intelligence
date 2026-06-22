@@ -38,7 +38,7 @@ Open http://localhost:8000
 
 ### Dashboard
 
-- Market overview: total products, total shops, total cities, top subcategory
+- Market overview: total products, total shops, total cities, most popular price range
 - Demand distribution: per subcategory, per price bucket
 - Product Mapping — Demand vs Rating quadrant (identifies market gaps)
 - Product Mapping — Demand vs Price quadrant (pricing intelligence)
@@ -57,10 +57,10 @@ Open http://localhost:8000
 ### AI Analyst Agent
 
 - Ask questions in Indonesian (e.g., "Produk cokelat apa yang paling laku di Bandung?")
-- Agent generates SQL, queries the database, returns data + chart + insight
+- Agent generates SQL, queries the database, returns data + chart type + insight
 - Follow-up suggestions after each answer
 - Handles unanswerable questions gracefully (e.g., profit margins — no cost data)
-- Multi-step reasoning: exploration queries, chain queries, clarifying questions
+- Multi-step reasoning: exploration queries, chain queries
 
 ---
 
@@ -138,7 +138,7 @@ The LLM **never answers freely**. Every response is grounded in data:
 2. DuckDB executes the SQL against the actual dataset
 3. LLM generates insight from the query results (not from memory)
 
-This two-step grounding eliminates hallucination — the LLM cannot invent data that doesn't exist in the database.
+This two-step grounding reduces hallucination — the LLM interprets actual query results, not memory.
 
 ### Intent Classification
 
@@ -148,7 +148,7 @@ The agent classifies each question into one of four intents:
 |--------|----------|
 | `direct_answer` | Generate SQL, execute, return result |
 | `needs_exploration` | Run discovery query first (e.g., `SELECT DISTINCT subcategory`), then answer |
-| `needs_clarification` | Ask user to refine ambiguous question |
+| `needs_clarification` | Classify as ambiguous, attempt SQL answer anyway |
 | `chain_queries` | Execute multiple SQL queries, compare results |
 
 ### Token Optimization
@@ -165,9 +165,9 @@ The agent classifies each question into one of four intents:
 
 | Failure Mode | Mitigation |
 |--------------|------------|
-| SQL syntax error | Auto-retry: max 3 iterations, LLM sees error message and fixes query |
+| SQL syntax error | Auto-retry: 1 attempt, LLM sees error message and fixes query |
 | Out-of-scope question | `is_unanswerable=true` detection — returns structured error in Indonesian |
-| Hallucination | SQL grounding — LLM generates SQL, DuckDB executes (never free-form) |
+| Hallucination | SQL grounding — LLM generates SQL, DuckDB executes, interprets actual results |
 | LLM failure | Fallback: structured error message in Indonesian |
 
 ---
