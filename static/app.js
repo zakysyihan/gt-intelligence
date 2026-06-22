@@ -319,17 +319,17 @@ function renderQuadrantChart(products) {
         { type: 'line', x0: xMin, x1: xMax, y0: medRating, y1: medRating, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    // Labels — positioned at corners of each quadrant
-    const xLow = xMin * 1.5;
-    const xHigh = xMax * 0.7;
-    const yLow = yMin + 0.05;
-    const yHigh = yMax - 0.05;
+    // Labels — positioned at center of each quadrant (geometric mean of quadrant bounds)
+    const xQ1 = Math.sqrt(xMin * medDemand);
+    const xQ2 = Math.sqrt(medDemand * xMax);
+    const yLow = (yMin + medRating) / 2;
+    const yHigh = (medRating + yMax) / 2;
 
     const annotations = [
-        { x: xHigh, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 12, color: '#059669', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#059669', borderwidth: 1, borderpad: 4 },
-        { x: xLow, y: yHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 12, color: '#2563eb', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#2563eb', borderwidth: 1, borderpad: 4 },
-        { x: xHigh, y: yLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 12, color: '#d97706', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#d97706', borderwidth: 1, borderpad: 4 },
-        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 12, color: '#dc2626', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#dc2626', borderwidth: 1, borderpad: 4 },
+        { x: xQ2, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 13, color: '#059669', family: 'Inter, sans-serif', weight: 700 } },
+        { x: xQ1, y: yHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 13, color: '#2563eb', family: 'Inter, sans-serif', weight: 700 } },
+        { x: xQ2, y: yLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 13, color: '#d97706', family: 'Inter, sans-serif', weight: 700 } },
+        { x: xQ1, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 13, color: '#dc2626', family: 'Inter, sans-serif', weight: 700 } },
     ];
 
     // Major ticks only on x-axis, fewer ticks on y-axis
@@ -396,17 +396,17 @@ function renderDemandPriceQuadrant(products) {
         { type: 'line', x0: xMin, x1: xMax, y0: medPrice, y1: medPrice, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    // Labels — positioned at corners of each quadrant
-    const xLow = xMin * 1.5;
-    const xHigh = xMax * 0.7;
-    const yLow = yMin * 1.5;
-    const yHigh = yMax * 0.7;
+    // Labels — positioned at center of each quadrant (geometric mean)
+    const xQ1 = Math.sqrt(xMin * medDemand);
+    const xQ2 = Math.sqrt(medDemand * xMax);
+    const yLow = Math.sqrt(yMin * medPrice);
+    const yHigh = Math.sqrt(medPrice * yMax);
 
     const annotations = [
-        { x: xHigh, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 12, color: '#059669', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#059669', borderwidth: 1, borderpad: 4 },
-        { x: xLow, y: yHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 12, color: '#2563eb', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#2563eb', borderwidth: 1, borderpad: 4 },
-        { x: xHigh, y: yLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 12, color: '#d97706', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#d97706', borderwidth: 1, borderpad: 4 },
-        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 12, color: '#dc2626', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#dc2626', borderwidth: 1, borderpad: 4 },
+        { x: xQ2, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 13, color: '#059669', family: 'Inter, sans-serif', weight: 700 } },
+        { x: xQ1, y: yHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 13, color: '#2563eb', family: 'Inter, sans-serif', weight: 700 } },
+        { x: xQ2, y: yLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 13, color: '#d97706', family: 'Inter, sans-serif', weight: 700 } },
+        { x: xQ1, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 13, color: '#dc2626', family: 'Inter, sans-serif', weight: 700 } },
     ];
 
     // Generate major tick values only (powers of 10)
