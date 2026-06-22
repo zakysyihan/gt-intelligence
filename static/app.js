@@ -362,6 +362,7 @@ function renderQuadrantChart(products) {
 
     plotChart('chart-quadrant', traces, {
         ...CHART_LAYOUT,
+        showlegend: false,
         xaxis: {
             title: 'Produk Terjual/Hari', type: 'log',
             range: [Math.log10(xMin), Math.log10(xMax)],
@@ -442,6 +443,7 @@ function renderDemandPriceQuadrant(products) {
 
     plotChart('chart-distribution', traces, {
         ...CHART_LAYOUT,
+        showlegend: false,
         xaxis: {
             title: 'Produk Terjual/Hari', type: 'log',
             range: [Math.log10(xMin), Math.log10(xMax)],
