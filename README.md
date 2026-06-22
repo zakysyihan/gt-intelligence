@@ -45,6 +45,16 @@ Open http://localhost:8000
 - Geographic distribution: top 15 cities by seller count
 - Filters: subcategory, province, city/kabupaten
 
+**Dashboard vs Analysis Categories:**
+
+| Category | Dashboard Feature |
+|----------|------------------|
+| 1. Demand & Trend | Subcategory demand chart, Customer Quality quadrant |
+| 2. Profitability | Price × Demand quadrant, price distribution chart |
+| 3. Geographic | Geographic distribution chart (top 15 cities), province/city filters |
+| 4. Temporal | Limited (snapshot data) — chat agent can query timestamp patterns |
+| 5. Product Success | Customer Quality quadrant (demand vs rating), chat agent for spec analysis |
+
 ### AI Analyst Agent
 
 - Ask questions in Indonesian (e.g., "Produk cokelat apa yang paling laku di Bandung?")
@@ -79,7 +89,7 @@ gt-intelligence/
 │   ├── api/               # FastAPI backend (primary UI server)
 │   ├── pipeline/          # Data scraping, cleaning, validation
 │   ├── llm/               # Agent, data loader, Google Trends
-│   └── app/               # Streamlit backup UI
+│   └── app/               # Chart helpers (Plotly)
 ├── static/                # Frontend assets (HTML, CSS, JS, GeoJSON)
 ├── data/
 │   ├── raw/               # Scraped JSON
@@ -107,6 +117,58 @@ Tokopedia API → Raw JSON → Staging → Clean → LLM Parse → Validate → 
 - **LLM Parse:** DeepSeek V4 Flash extracts product specs from titles (~$0.01 for 1,317 products)
 - **Validation:** 8 checks (schema, types, nulls, ranges, dedup, geography, category, row count)
 - **Storage:** SQLite (1 table, 19 fields, 1,317 products, indexed on subcategory/province)
+
+---
+
+## AI Model & Prompt Engineering
+
+### System Prompt Structure
+
+The agent uses a structured system prompt with four layers ([src/llm/agent.py](src/llm/agent.py)):
+
+1. **Business context** — Indonesian term → SQL mapping (e.g., "terlaris" → `ORDER BY sold_count DESC`, "menguntungkan" → `ORDER BY (price * sold_count) DESC`). Defines the business domain: general trade, food & beverage, Tokopedia, Java Island.
+2. **Data dictionary** — Column definitions with business meaning (e.g., `sold_count` = monthly sales volume, `estimated_revenue` = virtual column computed at query time).
+3. **SQL rules** — DuckDB syntax, single table, no `review_count`, ILIKE for text matching, handle NULLs on parsed specs.
+4. **Unanswerable question rules** — Explicit list of out-of-scope topics (profit margins, buyer demographics, forecasting, external data). Returns structured error in Indonesian.
+
+### Grounding Strategy
+
+The LLM **never answers freely**. Every response is grounded in data:
+
+1. LLM generates SQL query (structured JSON output)
+2. DuckDB executes the SQL against the actual dataset
+3. LLM generates insight from the query results (not from memory)
+
+This two-step grounding eliminates hallucination — the LLM cannot invent data that doesn't exist in the database.
+
+### Intent Classification
+
+The agent classifies each question into one of four intents:
+
+| Intent | Behavior |
+|--------|----------|
+| `direct_answer` | Generate SQL, execute, return result |
+| `needs_exploration` | Run discovery query first (e.g., `SELECT DISTINCT subcategory`), then answer |
+| `needs_clarification` | Ask user to refine ambiguous question |
+| `chain_queries` | Execute multiple SQL queries, compare results |
+
+### Token Optimization
+
+| Stage | Strategy | Cost |
+|-------|----------|------|
+| LLM Parse (offline) | Batch processing (10 products per API call) | ~$0.01 for 1,317 products |
+| Query-time (online) | Schema is 1 table / 19 columns — minimal prompt size, no JOIN context needed | Negligible |
+| Google Trends | 24-hour cache to avoid repeated API calls | Zero (cached) |
+| SQL generation | `temperature=0` for deterministic, reproducible queries | — |
+
+### Error Handling
+
+| Failure Mode | Mitigation |
+|--------------|------------|
+| SQL syntax error | Auto-retry: max 3 iterations, LLM sees error message and fixes query |
+| Out-of-scope question | `is_unanswerable=true` detection — returns structured error in Indonesian |
+| Hallucination | SQL grounding — LLM generates SQL, DuckDB executes (never free-form) |
+| LLM failure | Fallback: structured error message in Indonesian |
 
 ---
 
@@ -152,10 +214,25 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full architecture docum
 | Choice | Alternative | Why This |
 |--------|------------|---------|
 | SQLite | PostgreSQL | 1,317 rows, single user — PostgreSQL overkill |
-| DeepSeek V4 Flash | GPT-5 | Free on SumoPod, 94%+ SQL accuracy for simple schema |
+| DeepSeek V4 Flash | GPT-4o-mini, Claude, Qwen | Free on SumoPod, 94%+ SQL accuracy for simple schema |
 | FastAPI + HTML/CSS/JS | React/Next.js | Full UX control, fast to build, no framework overhead |
 | Python + Pandas | Polars | More common, easier to explain |
 | Docker | Manual deploy | One command to run, reproducible |
+
+### Why DeepSeek V4 Flash?
+
+**Benchmark context (TokenMix, 2026):** On simple SQL tasks with single-table schemas, all major LLMs score 94%+ accuracy. The bottleneck is not model capability — it's cost and availability.
+
+| Model | SQL Accuracy | Cost | Availability |
+|-------|-------------|------|--------------|
+| DeepSeek V4 Flash | 94%+ | Free (SumoPod platform) | Self-hosted |
+| GPT-4o-mini | 95%+ | $0.15/1M input tokens | API (OpenAI) |
+| Claude Haiku | 94%+ | $0.25/1M input tokens | API (Anthropic) |
+| Qwen 2.5 | 94%+ | Free (self-hosted) | Requires GPU |
+
+**Decision:** DeepSeek V4 Flash is free on SumoPod (the deployment platform), has comparable SQL accuracy for our simple 1-table schema, and eliminates API cost entirely. For a dataset of 1,317 products with 19 columns, the schema fits in ~200 tokens — well within any model's context window.
+
+**Switching cost:** One environment variable change (`LLM_MODEL=gpt-4o-mini`). The agent code is model-agnostic via the OpenAI-compatible API.
 
 ---
 

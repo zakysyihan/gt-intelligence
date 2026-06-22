@@ -273,6 +273,6 @@ research/
 | **Day 2 (Sun Jun 21)** | Data pipeline + cleaning + analytics + LLM interface | 5-6 hr | Working MVP |
 | **Day 3 (Mon Jun 22)** | Documentation + demo video + presentation + submission | 5-6 hr | All deliverables submitted |
 
-**Confidence note:** With AI coding, data pipeline + Streamlit + LLM interface is a 2-day build. Day 3 is docs + polish. Not 5 days.
+**Confidence note:** With AI coding, data pipeline + FastAPI + HTML/CSS/JS + LLM interface is a 2-day build. Day 3 is docs + polish. Not 5 days.
 
 **Deadline:** Monday June 22, 2026 (EOD)

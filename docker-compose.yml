@@ -4,7 +4,6 @@ services:
     container_name: gt-intelligence
     ports:
       - "8000:8000"   # Custom UI (FastAPI)
-      - "8501:8501"   # Streamlit (backup)
     env_file:
       - .env
     volumes:

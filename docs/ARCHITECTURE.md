@@ -71,8 +71,6 @@ graph TB
     VL --> DB
 ```
 
-**Note:** Streamlit (`src/app/app.py`) runs on port 8501 as a backup UI. The primary interface is the custom FastAPI + HTML/CSS/JS frontend on port 8000.
-
 ---
 
 ## 3. Data Flow
@@ -171,6 +169,16 @@ The dashboard loads on port 8000 with metric cards, 5 charts, and filters.
 | `/api/sessions/{id}` | GET | Get session history |
 | `/api/sessions/{id}/title` | PUT | Update session title |
 
+### Analysis Categories
+
+| Category | Dashboard | Chat Agent |
+|----------|-----------|------------|
+| 1. Demand & Trend | Subcategory demand bar chart, Customer Quality quadrant | "Produk terlaris?", "Tren per subkategori?" |
+| 2. Profitability | Price × Demand quadrant, price distribution chart | "Estimasi pendapatan tertinggi?", "Harga rata-rata?" |
+| 3. Geographic | Geographic distribution chart, province/city filters | "Distribusi per kota?", "Kota mana paling banyak seller?" |
+| 4. Temporal | Limited (snapshot data) | "Pola penjualan dari timestamp?", query by date range |
+| 5. Product Success | Customer Quality quadrant (demand vs rating) | "Spesifikasi paling laris?", "Rasa/berat terlaris?" |
+
 ---
 
 ## 5. Technology Choices
@@ -183,7 +191,6 @@ The dashboard loads on port 8000 with metric cards, 5 charts, and filters.
 | Query engine | DuckDB | Fast in-memory SQL, ATTACH SQLite directly |
 | LLM Agent | SumoPod DeepSeek V4 Flash | Free, OpenAI-compatible, 94%+ SQL accuracy on simple schemas |
 | Interface | FastAPI + HTML/CSS/JS | Dashboard-first, smooth UX, full control |
-| Backup UI | Streamlit | Dashboard-first layout, rapid prototyping |
 | Visualization | Plotly | Interactive charts, scatter plots for quadrants |
 | Google Trends | pytrends | Search interest data (24h cache, rate-limit aware) |
 | Containerization | Docker | Single container, simple deployment |
@@ -194,6 +201,23 @@ The dashboard loads on port 8000 with metric cards, 5 charts, and filters.
 Our schema is trivial — 1 table, 19 columns, no JOINs. We use **prompt engineering** with a structured system prompt (business context, data dictionary, SQL rules) instead of a semantic layer like WrenAI MDL.
 
 TokenMix benchmark (2026): all LLMs score 94%+ on simple SQL. A semantic layer is overkill for this schema. If the schema grows to 10+ tables with JOINs, we'd adopt WrenAI MDL.
+
+The system prompt contains:
+- **Business context:** Indonesian term → SQL mapping (e.g., "terlaris" → ORDER BY sold_count DESC, "menguntungkan" → price × sold_count)
+- **Data dictionary:** Column definitions, types, and semantics (e.g., sold_count = monthly sales, review_count = all zeros)
+- **SQL rules:** SELECT-only, always use products table, ILIKE for text matching, handle NULLs for flavor/weight
+- **Unanswerable rules:** Explicit list of out-of-scope topics (profit margins, buyer data, predictions, external data)
+- **Dataset stats:** Row count, subcategories, location count, price range — injected dynamically at runtime
+
+### Token Optimization
+
+| Component | Strategy | Token Impact |
+|-----------|----------|--------------|
+| LLM parse step | Batch processing (10 products per API call), temperature=0 | ~$0.01 for 1,317 products |
+| Query-time agent | Schema is 1 table/19 columns — minimal prompt tokens, no JOIN context needed | ~200 tokens for schema |
+| Google Trends | 24-hour local cache (data/trends_cache.json) to avoid repeated API calls | Zero per query (cached) |
+| Deterministic generation | temperature=0 for SQL, temperature=0.3 for insight generation | Consistent SQL, varied insights |
+| Context window | System prompt ~500 tokens + schema ~200 tokens + data dictionary ~300 tokens | ~1,000 tokens per query |
 
 ---
 
@@ -241,6 +265,16 @@ CREATE TABLE products (
 | Unanswerable questions | Structured refusal with specific explanation |
 | No PII in data | Public product listings only, no user data |
 | VPS access | SSH key-based auth only, no passwords |
+
+### AI Error Handling
+
+| Scenario | Handling |
+|----------|----------|
+| **SQL auto-retry** | Max 3 iterations. If SQL fails, error message is fed back to LLM with the original question and failed SQL. LLM generates corrected SQL. |
+| **Unanswerable detection** | LLM returns `is_unanswerable: true` with a reason. Agent displays structured refusal in Indonesian. |
+| **Intent classification** | LLM classifies each question before acting — direct_answer, needs_exploration (discovery query first), needs_clarification (ask user to refine), chain_queries (multiple SQL for comparison). |
+| **Hallucination mitigation** | LLM never generates free-form answers. It must generate SQL first. DuckDB executes the SQL. LLM interprets results. This two-step pattern prevents hallucinated data. |
+| **Timeout/fallback** | If LLM API is unavailable, agent returns error message. If LLM returns malformed JSON, agent catches exception and returns error. |
 
 ---
 

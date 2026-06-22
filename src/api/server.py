@@ -6,7 +6,7 @@ Serves the custom UI and provides REST API for:
 - Sessions (create, switch, list)
 - Google Trends data
 
-Port: 8000 (Streamlit moves to 8501)
+Port: 8000
 """
 
 import os

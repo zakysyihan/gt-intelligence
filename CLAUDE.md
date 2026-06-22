@@ -116,7 +116,7 @@ gt-intelligence/
 │   ├── pipeline/      ← scraping + cleaning + validation
 │   ├── analytics/     ← business questions
 │   ├── llm/           ← LLM grounding
-│   └── app/           ← Streamlit UI
+│   └── app/           ← Chart helpers (Plotly)
 ├── data/              ← datasets (gitignored)
 ├── docs/              ← architecture doc
 ├── research/          ← research docs

@@ -414,9 +414,8 @@ Based on Indonesian F&B marketplace research:
 | Spec parsing | DeepSeek v4 Flash (SumoPod AI) | LLM extracts flavor/weight/variant from product names (80%+ accuracy) |
 | Analytics + LLM Agent | OpenAI gpt-4o-mini + ReAct loop | Multi-step reasoning, grounded in MDL semantic layer |
 | Custom UI | FastAPI + HTML/CSS/JS | Production-smooth, modern design |
-| Backup UI | Streamlit | Dashboard-first layout, backup/prototype |
 | Google Trends | pytrends | Search interest data (24hr cache, rate-limit aware) |
-| Containerization | Docker + Docker Compose | Dual-service container (FastAPI + Streamlit) |
+| Containerization | Docker + Docker Compose | Single-service container (FastAPI) |
 | Deployment | Single VPS (43.133.140.154) | All services on one machine |
 | Testing | Python assert + pytest | Simple verification |
 
@@ -434,7 +433,7 @@ Based on Indonesian F&B marketplace research:
 | Concern | MVP (This Project) | Production (Future) |
 |---------|-------------------|---------------------|
 | Database | SQLite (file-based) | PostgreSQL (concurrent access, millions of rows) |
-| UI | Custom HTML/CSS/JS + Streamlit backup | React/Vue SPA with auth |
+| UI | Custom HTML/CSS/JS | React/Vue SPA with auth |
 | LLM Agent | OpenAI gpt-4o-mini + ReAct | Self-hosted LLM + RAG pipeline |
 | Deployment | Single VPS, Docker Compose | Kubernetes, load balancer |
 | Scraping | Manual run, tokopaedi mobile API | Scheduled (cron/Airflow), proxy rotation |
@@ -451,12 +450,6 @@ Based on Indonesian F&B marketplace research:
 - **Follow-up suggestions:** Agent can suggest next questions based on context
 - **Apache 2.0 license:** Permissive, no restrictions
 - **Agent-native:** Built for AI agent workflows, not just a library
-
-### Why Chainlit Over Streamlit
-
-- **Built for conversational AI:** Chat UI, tool calls, actions out of the box
-- **Agent-native:** Designed for LLM agents, not general-purpose dashboards
-- **Pairs with WrenAI:** Both are agent-focused, natural fit
 
 ### MVP vs Production
 

@@ -1,6 +1,6 @@
 """Chart generation helpers for GT Intelligence.
 
-Returns Plotly Figure objects that Chainlit can render inline.
+Returns Plotly Figure objects for the FastAPI dashboard.
 All charts use a consistent color palette and Indonesian labels.
 
 ponytail: Simple functions returning go.Figure — no chart class hierarchy,

@@ -15,13 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY static/ ./static/
 COPY data/ ./data/
-COPY .streamlit/ .streamlit/
 COPY start.sh .
 
 RUN chmod +x start.sh
 
-# Expose both ports
-EXPOSE 8000 8501
+EXPOSE 8000
 
-# Start both services
 CMD ["./start.sh"]
