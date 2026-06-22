@@ -460,14 +460,6 @@ function renderDemandPriceQuadrant(products) {
         height: 300,
     }, { responsive: true, displayModeBar: false });
 }
-            gridcolor: '#e2e8f0',
-            tickvals: majorTicks(yMin, yMax),
-            tickformat: '.0s',
-        },
-        shapes,
-        height: 300,
-    }, { responsive: true, displayModeBar: false });
-}
 
 // ---------------------------------------------------------------------------
 // Chat
