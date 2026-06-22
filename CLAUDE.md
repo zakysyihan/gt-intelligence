@@ -48,7 +48,7 @@ This is NOT vibe coding. Every feature starts with a spec, not a prompt.
 
 ## VPS
 
-- **Host:** 43.133.140.154
+- **Host:** 43.133.140.154 (gt-intelligence.biz.id)
 - **User:** ubuntu
 - **SSH key:** ~/.ssh/gt-intelligence
 - **Deploy path:** /home/ubuntu/gt-intelligence/
@@ -82,7 +82,7 @@ import time
 with sync_playwright() as p:
     browser = p.chromium.launch()
     page = browser.new_page(viewport={'width': 1440, 'height': 900})
-    page.goto('http://43.133.140.154:8000', timeout=30000)
+    page.goto('https://gt-intelligence.biz.id', timeout=30000)
     time.sleep(5)
     page.screenshot(path='/tmp/gt-screenshot.png', full_page=True)
     browser.close()

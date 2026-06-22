@@ -8,7 +8,7 @@
 
 ## Smoke Test
 
-- [ ] Open http://43.133.140.154:8000
+- [ ] Open https://gt-intelligence.biz.id
 - [ ] Dashboard loads with all 8 widgets
 - [ ] Metric cards show correct data (672 products, avg price Rp 44K, etc.)
 - [ ] Filters work (subcategory, location, price range)
@@ -88,7 +88,7 @@
 | Architecture document | ✅ | docs/ARCHITECTURE.md |
 | Demo video | ⏳ | (record + upload) |
 | Presentation | ⏳ | submission/ (create slides from outline) |
-| Live demo | ✅ | http://43.133.140.154:8000 |
+| Live demo | ✅ | https://gt-intelligence.biz.id |
 
 ---
 

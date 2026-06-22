@@ -194,7 +194,7 @@ The dashboard loads on port 8000 with metric cards, 5 charts, and filters.
 | Visualization | Plotly | Interactive charts, scatter plots for quadrants |
 | Google Trends | pytrends | Search interest data (24h cache, rate-limit aware) |
 | Containerization | Docker | Single container, simple deployment |
-| Deployment | SumoPod VPS Jakarta | 2vCPU/2GB/40GB, Rp 60k/month |
+| Deployment | SumoPod VPS Jakarta | 2vCPU/2GB/40GB, Rp 60k/month, gt-intelligence.biz.id |
 
 ### Key Decision: Prompt Engineering vs Semantic Layer
 

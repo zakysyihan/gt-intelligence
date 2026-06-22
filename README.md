@@ -2,7 +2,7 @@
 
 > LLM-powered market intelligence system that helps general trade businesses identify winning products to develop. Scrapes marketplace data, analyzes trends and pricing patterns, and provides a natural-language interface for data-driven product decisions.
 
-**Live demo:** http://43.133.140.154:8000
+**Live demo:** https://gt-intelligence.biz.id
 
 ---
 

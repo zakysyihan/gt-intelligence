@@ -416,7 +416,7 @@ Based on Indonesian F&B marketplace research:
 | Custom UI | FastAPI + HTML/CSS/JS | Production-smooth, modern design |
 | Google Trends | pytrends | Search interest data (24hr cache, rate-limit aware) |
 | Containerization | Docker + Docker Compose | Single-service container (FastAPI) |
-| Deployment | Single VPS (43.133.140.154) | All services on one machine |
+| Deployment | Single VPS (gt-intelligence.biz.id) | All services on one machine |
 | Testing | Python assert + pytest | Simple verification |
 
 ### Data Limitations
@@ -440,7 +440,7 @@ Based on Indonesian F&B marketplace research:
 | Google Trends | pytrends (unofficial) | Official API or SerpAPI |
 | Authentication | None (single user) | Multi-user auth, RBAC |
 | Data pipeline | Batch (scrape → clean → serve) | Streaming with dbt (lineage, version control, auto-docs) |
-| Deployment | Single VPS (43.133.140.154) | All services on one machine |
+| Deployment | Single VPS (gt-intelligence.biz.id) | All services on one machine |
 | Testing | Python assert + pytest | Simple verification |
 
 ### Why WrenAI Over Vanna.ai

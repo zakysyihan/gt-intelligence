@@ -27,7 +27,7 @@ Show: raw data → cleaned data → SQLite
 
 ## Dashboard (3:00 - 5:00)
 
-Open http://43.133.140.154:8000
+Open https://gt-intelligence.biz.id
 
 "Dashboard menampilkan overview pasar. 672 produk, total demand, harga rata-rata. Chart per subkategori — snack mendominasi. Distribusi harga — sweet spot di 15K-30K. Geographic — Surabaya dan Bandung dominan."
 
