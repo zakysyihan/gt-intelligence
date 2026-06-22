@@ -1,6 +1,6 @@
 # GT Intelligence — Presentation Outline
 
-5 slides for PT Bangunindo Teknusa Jaya test case. Speaker notes in Indonesian.
+5 slides for GT Intelligence presentation. Speaker notes in Indonesian.
 
 ---
 

@@ -1,4 +1,4 @@
-# SPEC.md — Bangunindo Analytics MVP
+# SPEC.md — GT Intelligence
 
 > Technical specification. Source of truth for all implementation.
 > Last updated: Jun 20, 2026
@@ -475,7 +475,7 @@ This section documents what's POC/MVP and what would change in production.
 | Data pipeline | Batch (scrape → clean → serve) | Streaming with dbt (lineage, version control, auto-docs) |
 | Cost | ~$0 (local) | VPS + DB hosting + LLM API costs |
 
-**The test case explicitly asks:** "what's included in the POC/MVP" and "what's not production-ready". This table answers both.
+This table answers both "what's included in the POC/MVP" and "what's not production-ready".
 
 ---
 

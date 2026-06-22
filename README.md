@@ -2,7 +2,7 @@
 
 > LLM-powered market intelligence system that helps general trade businesses identify winning products to develop. Scrapes marketplace data, analyzes trends, and provides a natural-language interface for data-driven product decisions.
 
-**Built for:** PT Bangunindo Teknusa Jaya
+**Built for:** General trade businesses that need data-driven product development.
 **Dataset:** 672 food & beverage products from Tokopedia (Java Island)  
 **Stack:** Python, DeepSeek V4 Flash, DuckDB, FastAPI + HTML/CSS/JS, Docker  
 **Live demo:** http://43.133.140.154:8000
@@ -142,4 +142,4 @@ Tokopedia API → Raw JSON → Staging → Clean → LLM Parse → Validate → 
 
 ## License
 
-Private — Built for PT Bangunindo Teknusa Jaya.
+Private — PT Bangunindo Teknusa Jaya.
