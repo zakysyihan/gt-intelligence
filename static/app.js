@@ -285,6 +285,23 @@ function median(arr) {
 // Log scale: median at geometric center of [min, max]
 // Linear scale: median at arithmetic center of [min, max]
 
+// Quadrant color scheme: green=good, blue=opportunity, orange=warning, red=avoid
+const QUAD_COLORS = {
+    winning: '#10b981',    // green
+    opportunity: '#3b82f6', // blue
+    warning: '#f59e0b',     // amber
+    avoid: '#ef4444',       // red
+};
+
+function getQuadColor(demand, demandMed, metric, metricMed, highMetric) {
+    const highDemand = demand >= demandMed;
+    const highMetricVal = metric >= metricMed;
+    if (highDemand && highMetricVal) return QUAD_COLORS.winning;
+    if (!highDemand && highMetricVal) return QUAD_COLORS.opportunity;
+    if (highDemand && !highMetricVal) return QUAD_COLORS.warning;
+    return QUAD_COLORS.avoid;
+}
+
 function renderQuadrantChart(products) {
     if (!products || !products.length) return;
 
@@ -293,33 +310,39 @@ function renderQuadrantChart(products) {
     const medDemand = median(dailySold);
     const medRating = median(ratings);
 
-    // X-axis (log): range centered on median
     const xMin = Math.max(0.1, medDemand / 10);
     const xMax = medDemand * 10;
-    // Y-axis: range with padding, max at 5.2 (but hide 5.2 label)
     const yPad = Math.max(0.5, (5 - medRating) * 0.5);
     const yMin = Math.max(4.0, medRating - yPad);
     const yMax = 5.2;
 
-    const subcats = [...new Set(products.map(p => p.subcategory))];
-    const traces = subcats.map((sc, i) => {
-        const pts = products.filter(p => p.subcategory === sc);
+    // Color each point by its quadrant
+    const quadNames = ['⭐ Winning Formula', '💎 Hidden Gem', '⚠️ Volume Only', '❌ Avoid'];
+    const quadColorValues = [QUAD_COLORS.winning, QUAD_COLORS.opportunity, QUAD_COLORS.warning, QUAD_COLORS.avoid];
+    const traces = quadNames.map((name, i) => {
+        const pts = products.filter(p => {
+            const d = p.daily_sold || p.sold_count / 30;
+            const q = getQuadColor(d, medDemand, p.rating, medRating, true);
+            return q === quadColorValues[i];
+        });
         return {
             type: 'scatter', mode: 'markers',
-            name: sc,
+            name: name,
             x: pts.map(p => p.daily_sold || p.sold_count / 30),
             y: pts.map(p => p.rating),
             text: pts.map(p => p.name.substring(0, 30)),
-            marker: { size: 8, color: CHART_COLORS[i % CHART_COLORS.length], opacity: 0.7 },
+            marker: { size: 9, color: quadColorValues[i], opacity: 0.8 },
         };
     });
 
+    // Thick, dark separator lines
+    const lineStyle = { color: '#64748b', dash: 'dash', width: 2 };
     const shapes = [
-        { type: 'line', x0: medDemand, x1: medDemand, y0: yMin, y1: yMax, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: xMin, x1: xMax, y0: medRating, y1: medRating, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: medDemand, x1: medDemand, y0: yMin, y1: yMax, line: lineStyle },
+        { type: 'line', x0: xMin, x1: xMax, y0: medRating, y1: medRating, line: lineStyle },
     ];
 
-    // HTML overlay labels (guaranteed visible)
+    // HTML overlay labels
     const quadLabels = document.getElementById('quad-labels-quality');
     if (quadLabels) {
         quadLabels.innerHTML = `
@@ -330,14 +353,10 @@ function renderQuadrantChart(products) {
         `;
     }
 
-    // Major ticks only on x-axis, fewer ticks on y-axis
     function majorTicks(min, max) {
         const ticks = [];
         let v = Math.pow(10, Math.floor(Math.log10(min)));
-        while (v <= max * 10) {
-            if (v >= min * 0.5) ticks.push(v);
-            v *= 10;
-        }
+        while (v <= max * 10) { if (v >= min * 0.5) ticks.push(v); v *= 10; }
         return ticks;
     }
 
@@ -369,50 +388,55 @@ function renderDemandPriceQuadrant(products) {
     const medDemand = median(dailySold);
     const medPrice = median(prices);
 
-    // X-axis (log): range centered on median
     const xMin = Math.max(0.1, medDemand / 10);
     const xMax = medDemand * 10;
-    // Y-axis (log): range centered on median
     const yMin = Math.max(1000, medPrice / 10);
     const yMax = medPrice * 10;
 
-    const subcats = [...new Set(products.map(p => p.subcategory))];
-    const traces = subcats.map((sc, i) => {
-        const pts = products.filter(p => p.subcategory === sc);
+    // Color by quadrant: high demand + high price = high value (green)
+    const quadNames = ['⭐ High Value', '💎 Budget Volume', '⚠️ Expensive Niche', '❌ Avoid'];
+    const quadColorValues = [QUAD_COLORS.winning, QUAD_COLORS.opportunity, QUAD_COLORS.warning, QUAD_COLORS.avoid];
+
+    const traces = quadNames.map((name, i) => {
+        const pts = products.filter(p => {
+            const d = p.daily_sold || p.sold_count / 30;
+            const highD = d >= medDemand;
+            const highP = p.price >= medPrice;
+            const qi = (highD && highP) ? 0 : (!highD && highP) ? 2 : (highD && !highP) ? 1 : 3;
+            return qi === i;
+        });
         return {
             type: 'scatter', mode: 'markers',
-            name: sc,
+            name: name,
             x: pts.map(p => p.daily_sold || p.sold_count / 30),
             y: pts.map(p => p.price),
             text: pts.map(p => p.name.substring(0, 25)),
-            marker: { size: 8, color: CHART_COLORS[i % CHART_COLORS.length], opacity: 0.7 },
+            marker: { size: 9, color: quadColorValues[i], opacity: 0.8 },
         };
     });
 
+    // Thick separator lines
+    const lineStyle = { color: '#64748b', dash: 'dash', width: 2 };
     const shapes = [
-        { type: 'line', x0: medDemand, x1: medDemand, y0: yMin, y1: yMax, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
-        { type: 'line', x0: xMin, x1: xMax, y0: medPrice, y1: medPrice, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
+        { type: 'line', x0: medDemand, x1: medDemand, y0: yMin, y1: yMax, line: lineStyle },
+        { type: 'line', x0: xMin, x1: xMax, y0: medPrice, y1: medPrice, line: lineStyle },
     ];
 
-    // HTML overlay labels (guaranteed visible)
+    // Fixed labels: top-right=high value, top-left=expensive niche, bottom-right=budget volume, bottom-left=avoid
     const quadLabels = document.getElementById('quad-labels-price');
     if (quadLabels) {
         quadLabels.innerHTML = `
             <div class="ql ql-tr" style="color:#059669;background:#f0fdf4;border:1px solid #bbf7d0;">⭐ High Value</div>
-            <div class="ql ql-tl" style="color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;">💎 Budget Volume</div>
-            <div class="ql ql-br" style="color:#d97706;background:#fffbeb;border:1px solid #fde68a;">⚠️ Expensive Niche</div>
+            <div class="ql ql-tl" style="color:#d97706;background:#fffbeb;border:1px solid #fde68a;">⚠️ Expensive Niche</div>
+            <div class="ql ql-br" style="color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;">💎 Budget Volume</div>
             <div class="ql ql-bl" style="color:#dc2626;background:#fef2f2;border:1px solid #fecaca;">❌ Avoid</div>
         `;
     }
 
-    // Generate major tick values only (powers of 10)
     function majorTicks(min, max) {
         const ticks = [];
         let v = Math.pow(10, Math.floor(Math.log10(min)));
-        while (v <= max * 10) {
-            if (v >= min * 0.5) ticks.push(v);
-            v *= 10;
-        }
+        while (v <= max * 10) { if (v >= min * 0.5) ticks.push(v); v *= 10; }
         return ticks;
     }
 
@@ -428,6 +452,14 @@ function renderDemandPriceQuadrant(products) {
         yaxis: {
             title: 'Harga (IDR)', type: 'log',
             range: [Math.log10(yMin), Math.log10(yMax)],
+            gridcolor: '#e2e8f0',
+            tickvals: majorTicks(yMin, yMax),
+            tickformat: '.0s',
+        },
+        shapes,
+        height: 300,
+    }, { responsive: true, displayModeBar: false });
+}
             gridcolor: '#e2e8f0',
             tickvals: majorTicks(yMin, yMax),
             tickformat: '.0s',
