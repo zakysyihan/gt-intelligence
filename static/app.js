@@ -319,11 +319,11 @@ function renderQuadrantChart(products) {
         { type: 'line', x0: xMin, x1: xMax, y0: medRating, y1: medRating, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    // Labels — positioned at edges of each quadrant for visibility
-    const xLow = Math.sqrt(xMin * medDemand);
-    const xHigh = Math.sqrt(medDemand * xMax);
+    // Labels — positioned at corners of each quadrant
+    const xLow = xMin * 1.5;
+    const xHigh = xMax * 0.7;
     const yLow = yMin + 0.05;
-    const yHigh = yMax - 0.15;
+    const yHigh = yMax - 0.05;
 
     const annotations = [
         { x: xHigh, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 12, color: '#059669', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#059669', borderwidth: 1, borderpad: 4 },
@@ -396,10 +396,11 @@ function renderDemandPriceQuadrant(products) {
         { type: 'line', x0: xMin, x1: xMax, y0: medPrice, y1: medPrice, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    const xLow = Math.sqrt(xMin * medDemand);
-    const xHigh = Math.sqrt(medDemand * xMax);
-    const yLow = Math.sqrt(yMin * medPrice);
-    const yHigh = Math.sqrt(medPrice * yMax);
+    // Labels — positioned at corners of each quadrant
+    const xLow = xMin * 1.5;
+    const xHigh = xMax * 0.7;
+    const yLow = yMin * 1.5;
+    const yHigh = yMax * 0.7;
 
     const annotations = [
         { x: xHigh, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 12, color: '#059669', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#059669', borderwidth: 1, borderpad: 4 },
