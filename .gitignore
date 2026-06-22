@@ -24,5 +24,16 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Streamlit
-.streamlit/secrets.toml
+# Development artifacts (not part of deliverable)
+.claude/
+prompts/
+docs/archived/
+HISTORY.md
+*.pdf
+
+# Test artifacts
+tests/screenshots/
+tests/*.py
+
+# Submission materials
+submission/
