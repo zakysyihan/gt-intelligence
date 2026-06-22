@@ -15,7 +15,7 @@ cd gt-intelligence
 
 # Setup
 cp .env.example .env
-# Edit .env — add your SumoPod AI API key
+# Edit .env — add your OpenAI-compatible API key
 
 # Run (Docker)
 docker compose up --build
@@ -23,7 +23,7 @@ docker compose up --build
 # Run (local)
 pip install -r requirements.txt
 python -m src.pipeline.run_pipeline
-uvicorn src.app.app:app --host 0.0.0.0 --port 8000
+uvicorn src.api.server:app --host 0.0.0.0 --port 8000
 ```
 
 Open http://localhost:8000
@@ -38,11 +38,12 @@ Open http://localhost:8000
 
 ### Dashboard
 
-- Market overview: total products, total shops, total cities, popular price range
+- Market overview: total products, total shops, total cities, top subcategory
 - Demand distribution: per subcategory, per price bucket
-- Customer Quality quadrant: Produk Terjual vs Rating (identifies market gaps)
-- Harga × Demand quadrant: Produk Terjual vs Harga (pricing intelligence)
-- Filters: subcategory, kota/kabupaten
+- Customer Quality quadrant: Demand vs Rating (identifies market gaps)
+- Price × Demand quadrant: Sales vs Pricing (pricing intelligence)
+- Geographic distribution: top 15 cities by seller count
+- Filters: subcategory, province, city/kabupaten
 
 ### AI Analyst Agent
 
@@ -50,6 +51,7 @@ Open http://localhost:8000
 - Agent generates SQL, queries the database, returns data + chart + insight
 - Follow-up suggestions after each answer
 - Handles unanswerable questions gracefully (e.g., profit margins — no cost data)
+- Multi-step reasoning: exploration queries, chain queries, clarifying questions
 
 ---
 
@@ -74,10 +76,11 @@ Open http://localhost:8000
 ```
 gt-intelligence/
 ├── src/
+│   ├── api/               # FastAPI backend (primary UI server)
 │   ├── pipeline/          # Data scraping, cleaning, validation
 │   ├── llm/               # Agent, data loader, Google Trends
-│   └── app/               # FastAPI backend + HTML/CSS/JS frontend
-├── static/                # Frontend assets (HTML, CSS, JS)
+│   └── app/               # Streamlit backup UI
+├── static/                # Frontend assets (HTML, CSS, JS, GeoJSON)
 ├── data/
 │   ├── raw/               # Scraped JSON
 │   ├── staging/           # Backup before transformation
@@ -101,8 +104,22 @@ Tokopedia API → Raw JSON → Staging → Clean → LLM Parse → Validate → 
 
 - **Scraping:** `tokopaedi` library (mobile API spoofing, bypasses Akamai)
 - **Cleaning:** Dedup, normalize prices, parse flavor/weight/variant, map provinces
-- **Validation:** 7 checks (schema, types, nulls, ranges, dedup, geography, row count)
-- **Storage:** SQLite (1 table, 19 fields, 1,317 products)
+- **LLM Parse:** DeepSeek V4 Flash extracts product specs from titles (~$0.01 for 1,317 products)
+- **Validation:** 8 checks (schema, types, nulls, ranges, dedup, geography, category, row count)
+- **Storage:** SQLite (1 table, 19 fields, 1,317 products, indexed on subcategory/province)
+
+---
+
+## Architecture
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full architecture document including:
+
+- System architecture diagram (Mermaid)
+- Data flow (offline pipeline + online query flow)
+- Technology choices and trade-offs
+- Data schema (19 fields)
+- Security & privacy
+- MVP vs production comparison
 
 ---
 
