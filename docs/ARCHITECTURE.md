@@ -50,9 +50,8 @@ graph TB
         VL[Validate<br/>8 checks]
     end
 
-    subgraph External["External APIs"]
+    subgraph External["External"]
         TK[Tokopedia API<br/>mobile spoofing]
-        GT[Google Trends<br/>pytrends]
     end
 
     U --> D
@@ -129,7 +128,7 @@ sequenceDiagram
 
 ## 4. Dashboard
 
-The dashboard loads on port 8000 with metric cards, 5 charts, and filters.
+The dashboard loads on port 8000 with metric cards, 4 charts, and filters.
 
 ### Metric Cards
 | Card | Query |
@@ -144,9 +143,8 @@ The dashboard loads on port 8000 with metric cards, 5 charts, and filters.
 |---|-------|------|-------------|
 | 1 | Demand per Subkategori | Bar chart | `SUM(sold_count) GROUP BY subcategory` |
 | 2 | Distribusi Demand per Harga | Bar chart | Price buckets × total sold |
-| 3 | Customer Quality Quadrant | Scatter (Demand vs Rating) | Per-product sold_count vs rating |
-| 4 | Harga × Demand Quadrant | Scatter (Price vs Sales) | Per-product price vs sold_count |
-| 5 | Distribusi Geografis | Horizontal bar | Top 15 cities by seller count |
+| 3 | Product Mapping — Demand vs Rating | Scatter quadrant | Per-product sold_count vs rating |
+| 4 | Product Mapping — Demand vs Harga | Scatter quadrant | Per-product price vs sold_count |
 
 ### Filters
 - **Subkategori:** chocolate, candy, snacks (multi-select)
@@ -158,12 +156,8 @@ The dashboard loads on port 8000 with metric cards, 5 charts, and filters.
 |----------|--------|-------------|
 | `/api/dashboard` | GET | Metrics + chart data (filtered) |
 | `/api/dashboard/filters` | GET | Available filter options |
-| `/api/dashboard/quadrant` | GET | Customer quality quadrant data |
-| `/api/dashboard/quadrant-store` | GET | Distribution quadrant data |
-| `/api/dashboard/geo-map` | GET | Geographic data with province aggregation |
-| `/api/dashboard/revenue` | GET | Revenue proxy data (price × demand) |
-| `/api/dashboard/specs` | GET | Top product specs by subcategory |
-| `/api/trends` | GET | Google Trends data (cached, 24h TTL) |
+| `/api/dashboard/quadrant` | GET | Product mapping — demand vs rating |
+| `/api/dashboard/revenue` | GET | Product mapping — price vs demand |
 | `/api/chat` | POST | Agentic AI chat |
 | `/api/sessions` | GET/POST | List/create chat sessions |
 | `/api/sessions/{id}` | GET | Get session history |
@@ -175,7 +169,7 @@ The dashboard loads on port 8000 with metric cards, 5 charts, and filters.
 |----------|-----------|------------|
 | 1. Demand & Trend | Subcategory demand bar chart, Customer Quality quadrant | "Produk terlaris?", "Tren per subkategori?" |
 | 2. Profitability | Price × Demand quadrant, price distribution chart | "Estimasi pendapatan tertinggi?", "Harga rata-rata?" |
-| 3. Geographic | Geographic distribution chart, province/city filters | "Distribusi per kota?", "Kota mana paling banyak seller?" |
+| 3. Geographic | Province/city filters | "Distribusi per kota?", "Kota mana paling banyak seller?" |
 | 4. Temporal | Limited (snapshot data) | "Pola penjualan dari timestamp?", query by date range |
 | 5. Product Success | Customer Quality quadrant (demand vs rating) | "Spesifikasi paling laris?", "Rasa/berat terlaris?" |
 
@@ -192,7 +186,6 @@ The dashboard loads on port 8000 with metric cards, 5 charts, and filters.
 | LLM Agent | SumoPod DeepSeek V4 Flash | Free, OpenAI-compatible, 94%+ SQL accuracy on simple schemas |
 | Interface | FastAPI + HTML/CSS/JS | Dashboard-first, smooth UX, full control |
 | Visualization | Plotly | Interactive charts, scatter plots for quadrants |
-| Google Trends | pytrends | Search interest data (24h cache, rate-limit aware) |
 | Containerization | Docker | Single container, simple deployment |
 | Deployment | SumoPod VPS Jakarta | 2vCPU/2GB/40GB, Rp 60k/month, gt-intelligence.biz.id |
 
@@ -215,7 +208,6 @@ The system prompt contains:
 |-----------|----------|--------------|
 | LLM parse step | Batch processing (10 products per API call), temperature=0 | ~$0.01 for 1,317 products |
 | Query-time agent | Schema is 1 table/19 columns — minimal prompt tokens, no JOIN context needed | ~200 tokens for schema |
-| Google Trends | 24-hour local cache (data/trends_cache.json) to avoid repeated API calls | Zero per query (cached) |
 | Deterministic generation | temperature=0 for SQL, temperature=0.3 for insight generation | Consistent SQL, varied insights |
 | Context window | System prompt ~500 tokens + schema ~200 tokens + data dictionary ~300 tokens | ~1,000 tokens per query |
 

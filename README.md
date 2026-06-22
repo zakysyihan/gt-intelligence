@@ -40,20 +40,19 @@ Open http://localhost:8000
 
 - Market overview: total products, total shops, total cities, top subcategory
 - Demand distribution: per subcategory, per price bucket
-- Customer Quality quadrant: Demand vs Rating (identifies market gaps)
-- Price × Demand quadrant: Sales vs Pricing (pricing intelligence)
-- Geographic distribution: top 15 cities by seller count
+- Product Mapping — Demand vs Rating quadrant (identifies market gaps)
+- Product Mapping — Demand vs Price quadrant (pricing intelligence)
 - Filters: subcategory, province, city/kabupaten
 
 **Dashboard vs Analysis Categories:**
 
 | Category | Dashboard Feature |
 |----------|------------------|
-| 1. Demand & Trend | Subcategory demand chart, Customer Quality quadrant |
+| 1. Demand & Trend | Subcategory demand chart, Product Mapping quadrant |
 | 2. Profitability | Price × Demand quadrant, price distribution chart |
-| 3. Geographic | Geographic distribution chart (top 15 cities), province/city filters |
+| 3. Geographic | Province/city filters (chat agent for city-level analysis) |
 | 4. Temporal | Limited (snapshot data) — chat agent can query timestamp patterns |
-| 5. Product Success | Customer Quality quadrant (demand vs rating), chat agent for spec analysis |
+| 5. Product Success | Product Mapping quadrant (demand vs rating), chat agent for spec analysis |
 
 ### AI Analyst Agent
 
@@ -88,7 +87,7 @@ gt-intelligence/
 ├── src/
 │   ├── api/               # FastAPI backend (primary UI server)
 │   ├── pipeline/          # Data scraping, cleaning, validation
-│   ├── llm/               # Agent, data loader, Google Trends
+│   ├── llm/               # Agent, data loader
 │   └── app/               # Chart helpers (Plotly)
 ├── static/                # Frontend assets (HTML, CSS, JS, GeoJSON)
 ├── data/
@@ -158,7 +157,6 @@ The agent classifies each question into one of four intents:
 |-------|----------|------|
 | LLM Parse (offline) | Batch processing (10 products per API call) | ~$0.01 for 1,317 products |
 | Query-time (online) | Schema is 1 table / 19 columns — minimal prompt size, no JOIN context needed | Negligible |
-| Google Trends | 24-hour cache to avoid repeated API calls | Zero (cached) |
 | SQL generation | `temperature=0` for deterministic, reproducible queries | — |
 
 ### Error Handling
