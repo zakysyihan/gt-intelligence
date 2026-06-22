@@ -319,18 +319,16 @@ function renderQuadrantChart(products) {
         { type: 'line', x0: xMin, x1: xMax, y0: medRating, y1: medRating, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    // Labels — positioned at center of each quadrant (geometric mean of quadrant bounds)
-    const xQ1 = Math.sqrt(xMin * medDemand);
-    const xQ2 = Math.sqrt(medDemand * xMax);
-    const yLow = (yMin + medRating) / 2;
-    const yHigh = (medRating + yMax) / 2;
-
-    const annotations = [
-        { x: xQ2, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 13, color: '#059669', family: 'Inter, sans-serif', weight: 700 } },
-        { x: xQ1, y: yHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 13, color: '#2563eb', family: 'Inter, sans-serif', weight: 700 } },
-        { x: xQ2, y: yLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 13, color: '#d97706', family: 'Inter, sans-serif', weight: 700 } },
-        { x: xQ1, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 13, color: '#dc2626', family: 'Inter, sans-serif', weight: 700 } },
-    ];
+    // HTML overlay labels (guaranteed visible)
+    const quadLabels = document.getElementById('quad-labels-quality');
+    if (quadLabels) {
+        quadLabels.innerHTML = `
+            <div class="ql ql-tr" style="color:#059669;background:#f0fdf4;border:1px solid #bbf7d0;">⭐ Winning Formula</div>
+            <div class="ql ql-tl" style="color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;">💎 Hidden Gem</div>
+            <div class="ql ql-br" style="color:#d97706;background:#fffbeb;border:1px solid #fde68a;">⚠️ Volume Only</div>
+            <div class="ql ql-bl" style="color:#dc2626;background:#fef2f2;border:1px solid #fecaca;">❌ Avoid</div>
+        `;
+    }
 
     // Major ticks only on x-axis, fewer ticks on y-axis
     function majorTicks(min, max) {
@@ -358,7 +356,7 @@ function renderQuadrantChart(products) {
             dtick: 0.2,
             tickvals: [4.4, 4.6, 4.8, 5.0],
         },
-        shapes, annotations,
+        shapes,
         height: 300,
     }, { responsive: true, displayModeBar: false });
 }
@@ -396,18 +394,16 @@ function renderDemandPriceQuadrant(products) {
         { type: 'line', x0: xMin, x1: xMax, y0: medPrice, y1: medPrice, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    // Labels — positioned at center of each quadrant (geometric mean)
-    const xQ1 = Math.sqrt(xMin * medDemand);
-    const xQ2 = Math.sqrt(medDemand * xMax);
-    const yLow = Math.sqrt(yMin * medPrice);
-    const yHigh = Math.sqrt(medPrice * yMax);
-
-    const annotations = [
-        { x: xQ2, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 13, color: '#059669', family: 'Inter, sans-serif', weight: 700 } },
-        { x: xQ1, y: yHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 13, color: '#2563eb', family: 'Inter, sans-serif', weight: 700 } },
-        { x: xQ2, y: yLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 13, color: '#d97706', family: 'Inter, sans-serif', weight: 700 } },
-        { x: xQ1, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 13, color: '#dc2626', family: 'Inter, sans-serif', weight: 700 } },
-    ];
+    // HTML overlay labels (guaranteed visible)
+    const quadLabels = document.getElementById('quad-labels-price');
+    if (quadLabels) {
+        quadLabels.innerHTML = `
+            <div class="ql ql-tr" style="color:#059669;background:#f0fdf4;border:1px solid #bbf7d0;">⭐ High Value</div>
+            <div class="ql ql-tl" style="color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;">💎 Budget Volume</div>
+            <div class="ql ql-br" style="color:#d97706;background:#fffbeb;border:1px solid #fde68a;">⚠️ Expensive Niche</div>
+            <div class="ql ql-bl" style="color:#dc2626;background:#fef2f2;border:1px solid #fecaca;">❌ Avoid</div>
+        `;
+    }
 
     // Generate major tick values only (powers of 10)
     function majorTicks(min, max) {
@@ -436,7 +432,7 @@ function renderDemandPriceQuadrant(products) {
             tickvals: majorTicks(yMin, yMax),
             tickformat: '.0s',
         },
-        shapes, annotations,
+        shapes,
         height: 300,
     }, { responsive: true, displayModeBar: false });
 }

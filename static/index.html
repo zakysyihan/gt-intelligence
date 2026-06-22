@@ -73,11 +73,17 @@
                 <div class="charts-row">
                     <div class="chart-card">
                         <h3 class="chart-title">📈 Customer Quality (Demand vs Rating)</h3>
-                        <div id="chart-quadrant" class="chart-container"></div>
+                        <div class="chart-container" style="position:relative;">
+                            <div id="chart-quadrant" style="width:100%;height:100%;"></div>
+                            <div class="quad-labels" id="quad-labels-quality"></div>
+                        </div>
                     </div>
                     <div class="chart-card">
                         <h3 class="chart-title">💵 Harga × Demand (Price vs Sales)</h3>
-                        <div id="chart-distribution" class="chart-container"></div>
+                        <div class="chart-container" style="position:relative;">
+                            <div id="chart-distribution" style="width:100%;height:100%;"></div>
+                            <div class="quad-labels" id="quad-labels-price"></div>
+                        </div>
                     </div>
                 </div>
 
