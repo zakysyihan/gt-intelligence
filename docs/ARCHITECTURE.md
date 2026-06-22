@@ -244,6 +244,8 @@ The system prompt contains:
 | Deterministic generation | temperature=0 for SQL, temperature=0.3 for insight generation | Consistent SQL, varied insights |
 | Context window | System prompt ~500 tokens + schema ~200 tokens + data dictionary ~300 tokens | ~1,000 tokens per query |
 
+**Total LLM cost:** ~Rp 2,000–5,000/day. Optimizable — reduce prompt size, cache repeated queries, switch to cheaper models for simple tasks.
+
 ---
 
 ## 6. Data Schema
@@ -314,7 +316,7 @@ CREATE TABLE products (
 | Auth | None (single user) | Multi-user, RBAC |
 | Monitoring | Logs only | Prometheus + Grafana |
 | Transformation | Python scripts | dbt (lineage, version control, auto-docs) |
-| Cost | ~Rp 60k/month (VPS only) | VPS + DB + LLM API + monitoring costs |
+| Cost | ~Rp 60k/month (VPS) + ~Rp 2-5k/day (LLM) | VPS + DB + LLM API + monitoring costs |
 
 ---
 

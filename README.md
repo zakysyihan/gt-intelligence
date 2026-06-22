@@ -159,6 +159,8 @@ The agent classifies each question into one of four intents:
 | Query-time (online) | Schema is 1 table / 19 columns — minimal prompt size, no JOIN context needed | Negligible |
 | SQL generation | `temperature=0` for deterministic, reproducible queries | — |
 
+**Total LLM cost:** ~Rp 2,000–5,000/day. Optimizable — reduce prompt size, cache repeated queries, switch to cheaper models for simple tasks.
+
 ### Error Handling
 
 | Failure Mode | Mitigation |
@@ -228,7 +230,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full architecture docum
 | Claude Haiku | 94%+ | $0.25/1M input tokens | API (Anthropic) |
 | Qwen 2.5 | 94%+ | Free (self-hosted) | Requires GPU |
 
-**Decision:** DeepSeek V4 Flash is free on SumoPod (the deployment platform), has comparable SQL accuracy for our simple 1-table schema, and eliminates API cost entirely. For a dataset of 1,317 products with 19 columns, the schema fits in ~200 tokens — well within any model's context window.
+**Decision:** DeepSeek V4 Flash is free on SumoPod (the deployment platform), has comparable SQL accuracy for our simple 1-table schema. For a dataset of 1,317 products with 19 columns, the schema fits in ~200 tokens — well within any model's context window.
 
 **Switching cost:** One environment variable change (`LLM_MODEL=gpt-4o-mini`). The agent code is model-agnostic via the OpenAI-compatible API.
 
