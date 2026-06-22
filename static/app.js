@@ -296,10 +296,10 @@ function renderQuadrantChart(products) {
     // X-axis (log): range centered on median
     const xMin = Math.max(0.1, medDemand / 10);
     const xMax = medDemand * 10;
-    // Y-axis (linear): range centered on median
+    // Y-axis (linear): range centered on median, capped at 5
     const yPad = Math.max(0.5, (5 - medRating) * 0.5);
     const yMin = Math.max(0, medRating - yPad);
-    const yMax = Math.min(5.5, medRating + yPad);
+    const yMax = 5; // Cap at max rating
 
     const subcats = [...new Set(products.map(p => p.subcategory))];
     const traces = subcats.map((sc, i) => {
@@ -326,16 +326,24 @@ function renderQuadrantChart(products) {
     const yHigh = (medRating + yMax) / 2;
 
     const annotations = [
-        { x: xHigh, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 10, color: '#059669' } },
-        { x: xLow, y: yHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 10, color: '#2563eb' } },
-        { x: xHigh, y: yLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 10, color: '#d97706' } },
-        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
+        { x: xHigh, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 11, color: '#059669' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
+        { x: xLow, y: yHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 11, color: '#2563eb' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
+        { x: xHigh, y: yLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 11, color: '#d97706' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
+        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 11, color: '#dc2626' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
     ];
 
     plotChart('chart-quadrant', traces, {
         ...CHART_LAYOUT,
-        xaxis: { title: 'Produk Terjual/Hari', type: 'log', range: [Math.log10(xMin), Math.log10(xMax)], gridcolor: '#e2e8f0' },
-        yaxis: { title: 'Rating', range: [yMin, yMax], gridcolor: '#e2e8f0' },
+        xaxis: {
+            title: 'Produk Terjual/Hari', type: 'log',
+            range: [Math.log10(xMin), Math.log10(xMax)],
+            gridcolor: '#e2e8f0',
+            dtick: 'D1', showminorgrid: false,
+        },
+        yaxis: {
+            title: 'Rating', range: [yMin, yMax],
+            gridcolor: '#e2e8f0',
+        },
         shapes, annotations,
         height: 300,
     }, { responsive: true, displayModeBar: false });
@@ -380,16 +388,26 @@ function renderDemandPriceQuadrant(products) {
     const yHigh = Math.sqrt(medPrice * yMax);
 
     const annotations = [
-        { x: xHigh, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 10, color: '#059669' } },
-        { x: xLow, y: yHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 10, color: '#2563eb' } },
-        { x: xHigh, y: yLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 10, color: '#d97706' } },
-        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 10, color: '#dc2626' } },
+        { x: xHigh, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 11, color: '#059669' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
+        { x: xLow, y: yHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 11, color: '#2563eb' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
+        { x: xHigh, y: yLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 11, color: '#d97706' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
+        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 11, color: '#dc2626' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
     ];
 
     plotChart('chart-distribution', traces, {
         ...CHART_LAYOUT,
-        xaxis: { title: 'Produk Terjual/Hari', type: 'log', range: [Math.log10(xMin), Math.log10(xMax)], gridcolor: '#e2e8f0' },
-        yaxis: { title: 'Harga (IDR)', type: 'log', range: [Math.log10(yMin), Math.log10(yMax)], gridcolor: '#e2e8f0' },
+        xaxis: {
+            title: 'Produk Terjual/Hari', type: 'log',
+            range: [Math.log10(xMin), Math.log10(xMax)],
+            gridcolor: '#e2e8f0',
+            dtick: 'D1', showminorgrid: false,
+        },
+        yaxis: {
+            title: 'Harga (IDR)', type: 'log',
+            range: [Math.log10(yMin), Math.log10(yMax)],
+            gridcolor: '#e2e8f0',
+            dtick: 'D1', showminorgrid: false,
+        },
         shapes, annotations,
         height: 300,
     }, { responsive: true, displayModeBar: false });
