@@ -514,7 +514,7 @@ async function loadSessionHistory(sessionId) {
             container.innerHTML = `
                 <div class="empty-state">
                     <p>💬 Tanya tentang data pasar Indonesia</p>
-                    <p class="text-muted">Contoh: "Produk mana yang paling menguntungkan?"</p>
+                    <p class="text-muted">Contoh: "Produk mana yang paling banyak terjual?"</p>
                 </div>`;
             return;
         }
@@ -608,10 +608,14 @@ function appendMessage(msg) {
         div.textContent = msg.content;
     } else if (msg.error) {
         div.className = 'msg msg-error';
-        div.innerHTML = `<div class="msg-label">🤖 Analis</div>${msg.error}`;
+        div.innerHTML = `<div class="msg-label">🤖 Market Analyst Agent</div><div style="padding:4px 0;">${msg.error}</div>`;
+    } else if (!msg.sql && !msg.data && !msg.insight) {
+        // Empty response
+        div.className = 'msg msg-error';
+        div.innerHTML = `<div class="msg-label">🤖 Market Analyst Agent</div><div style="padding:4px 0;">Maaf, saya tidak dapat menjawab pertanyaan ini. Silakan coba pertanyaan tentang data penjualan produk.</div>`;
     } else {
         div.className = 'msg msg-assistant';
-        let html = '<div class="msg-label">🤖 Analis</div>';
+        let html = '<div class="msg-label">🤖 Market Analyst Agent</div>';
 
         // SQL (collapsible)
         if (msg.sql) {
@@ -623,16 +627,24 @@ function appendMessage(msg) {
             html += renderTable(msg.data, msg.columns);
         }
 
-        // Insight
+        // Insight (clean up markdown artifacts)
         if (msg.insight) {
-            html += `<div class="insight-box">💡 ${msg.insight}</div>`;
+            let cleanInsight = msg.insight
+                .replace(/\|[^|]+\|/g, '')  // Remove table pipe rows
+                .replace(/-{3,}/g, '')       // Remove separator lines
+                .replace(/\n{3,}/g, '\n\n') // Collapse extra newlines
+                .trim();
+            if (cleanInsight.length > 10) {
+                html += `<div class="insight-box">💡 ${cleanInsight}</div>`;
+            }
         }
 
-        // Chart button
-        if (msg.data && msg.chart_type && msg.chart_type !== 'table') {
+        // Chart button — render chart inline
+        if (msg.data && msg.data.length && msg.chart_type && msg.chart_type !== 'table') {
             const chartId = 'chat-chart-' + Date.now();
-            html += `<button class="chart-expand-btn" onclick="expandChart('${chartId}', '${msg.chart_type}', '${escapeAttr(msg.content || '')}')">📊 Tampilkan Chart</button>`;
-            html += `<div id="${chartId}" style="display:none;"></div>`;
+            html += `<div id="${chartId}" class="chat-chart-container"></div>`;
+            // Store chart data for rendering after DOM insert
+            setTimeout(() => renderChatChart(chartId, msg), 100);
         }
 
         // Follow-ups
@@ -648,6 +660,43 @@ function appendMessage(msg) {
     }
 
     container.appendChild(div);
+}
+
+function renderChatChart(containerId, msg) {
+    const container = document.getElementById(containerId);
+    if (!container || !msg.data || !msg.data.length) return;
+
+    // Find first numeric column for y-axis
+    const cols = msg.columns || Object.keys(msg.data[0]);
+    let xCol = cols[0], yCol = null;
+    for (const c of cols) {
+        if (typeof msg.data[0][c] === 'number') { yCol = c; break; }
+    }
+    if (!yCol && cols.length > 1) yCol = cols[1];
+
+    if (!yCol) return; // No numeric data to chart
+
+    const xVals = msg.data.slice(0, 15).map(r => String(r[xCol] || '').substring(0, 25));
+    const yVals = msg.data.slice(0, 15).map(r => Number(r[yCol]) || 0);
+
+    const chartData = [{
+        type: 'bar',
+        x: xVals,
+        y: yVals,
+        marker: { color: '#2563eb' },
+        text: yVals.map(v => v.toLocaleString()),
+        textposition: 'outside',
+        cliponaxis: false,
+    }];
+
+    Plotly.newPlot(containerId, chartData, {
+        ...CHART_LAYOUT,
+        height: 250,
+        margin: { l: 50, r: 30, t: 10, b: 80 },
+        xaxis: { tickangle: -45, gridcolor: '#e2e8f0' },
+        yaxis: { gridcolor: '#e2e8f0' },
+        showlegend: false,
+    }, { responsive: true, displayModeBar: false });
 }
 
 function renderTable(data, columns) {
@@ -668,17 +717,6 @@ function renderTable(data, columns) {
     });
     html += '</tbody></table></div>';
     return html;
-}
-
-function expandChart(containerId, chartType, question) {
-    const container = document.getElementById(containerId);
-    if (container.style.display !== 'none') {
-        container.style.display = 'none';
-        return;
-    }
-    container.style.display = 'block';
-    // Placeholder — real chart data comes from chat response
-    container.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">📊 Chart akan muncul di sini</div>';
 }
 
 // ---------------------------------------------------------------------------

@@ -457,24 +457,45 @@ async def get_trends():
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
-    """Process a chat message through the agentic AI."""
+    """Process a chat message through the agentic AI with conversation context."""
     agent = get_agent()
 
-    # Get or create session
     if req.session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
     session = sessions[req.session_id]
     session["messages"].append({"role": "user", "content": req.message})
 
-    # Run agent
-    response = agent.ask(req.message)
+    # Build conversation context (last 5 exchanges for token efficiency)
+    history = session["messages"][-10:]
+    context_messages = [{"role": m["role"], "content": m["content"]} for m in history]
+
+    # Run agent with context
+    try:
+        response = agent.ask(req.message, context=context_messages)
+    except Exception as e:
+        response = None
 
     # Build assistant message
     assistant_msg = {"role": "assistant", "content": req.message}
-    if response.error and not response.data:
-        assistant_msg["error"] = response.error
-        assistant_msg["is_unanswerable"] = response.is_unanswerable
+
+    if response is None:
+        assistant_msg["error"] = "Terjadi kesalahan saat memproses pertanyaan. Silakan coba lagi."
+        assistant_msg["is_unanswerable"] = True
+    elif response.error and not response.data:
+        # Graceful error messages
+        err = response.error
+        if "prepared statement" in err.lower() or "invalid" in err.lower():
+            assistant_msg["error"] = "Pertanyaan tidak dapat diproses. Silakan coba dengan pertanyaan yang lebih spesifik."
+        elif response.is_unanswerable:
+            assistant_msg["error"] = err
+        else:
+            assistant_msg["error"] = f"Terjadi kesalahan: {err[:100]}"
+        assistant_msg["is_unanswerable"] = True
+    elif not response.sql and not response.data:
+        # Empty response — agent didn't generate useful output
+        assistant_msg["error"] = "Maaf, saya tidak dapat memberikan jawaban untuk pertanyaan ini. Silakan coba pertanyaan lain tentang data penjualan produk."
+        assistant_msg["is_unanswerable"] = True
     else:
         assistant_msg["sql"] = response.sql
         assistant_msg["data"] = response.data
@@ -497,7 +518,6 @@ async def chat(req: ChatRequest):
         "session_id": req.session_id,
         "title": session["title"],
         "message": assistant_msg,
-        "history": session["messages"],
     }
 
 

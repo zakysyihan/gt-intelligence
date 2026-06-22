@@ -93,28 +93,27 @@
         <!-- Chat panel -->
         <div class="chat-panel" id="chat-panel" style="display:none;">
             <div class="chat-header">
-                <h2 class="chat-title">🤖 Analis Pasar</h2>
+                <h2 class="chat-title">🤖 Market Analyst Agent</h2>
                 <div class="chat-header-actions">
                     <select id="session-select" class="session-select" onchange="switchSession(this.value)"></select>
                     <button class="btn btn-small" onclick="newSession()">➕</button>
                 </div>
             </div>
 
-            <!-- Quick actions -->
+            <!-- Quick actions — 5 predefined questions -->
             <div class="quick-actions">
-                <button class="quick-btn" onclick="askQuick('Top 10 produk terlaris bulan ini')">🏆 Terlaris</button>
-                <button class="quick-btn" onclick="askQuick('Tren penjualan per subkategori')">📈 Tren</button>
-                <button class="quick-btn" onclick="askQuick('Estimasi pendapatan tertinggi (harga × terjual)')">💰 Pendapatan</button>
-                <button class="quick-btn" onclick="askQuick('Distribusi penjualan per kota di Jawa')">🗺️ Regional</button>
-                <button class="quick-btn" onclick="askQuick('Harga rata-rata per subkategori')">📊 Harga</button>
-                <button class="quick-btn" onclick="askQuick('Spesifikasi produk paling laris (rasa, berat)')">🍫 Specs</button>
+                <button class="quick-btn" onclick="askQuick('Produk mana yang paling banyak terjual bulan ini? Top 10 berdasarkan sold_count')">🏆 Top 10 Terlaris</button>
+                <button class="quick-btn" onclick="askQuick('Subkategori mana yang menghasilkan estimasi pendapatan tertinggi (harga × terjual)?')">💰 Pendapatan per Subkategori</button>
+                <button class="quick-btn" onclick="askQuick('Kota mana di Jawa yang paling banyak menjual produk ini? Top 10 kota')">🗺️ Top 10 Kota Terjual</button>
+                <button class="quick-btn" onclick="askQuick('Rata-rata harga dan rating per subkategori? Bandingkan chocolate, candy, snacks')">📊 Harga & Rating per Subkategori</button>
+                <button class="quick-btn" onclick="askQuick('Produk apa yang paling cocok untuk dijual di Surabaya berdasarkan data penjualan?')">🔍 Rekomendasi Surabaya</button>
             </div>
 
             <!-- Chat messages -->
             <div class="chat-messages" id="chat-messages">
                 <div class="empty-state">
                     <p>💬 Tanya tentang data pasar Indonesia</p>
-                    <p class="text-muted">Contoh: "Produk mana yang paling menguntungkan?"</p>
+                    <p class="text-muted">Contoh: "Produk mana yang paling banyak terjual?"</p>
                 </div>
             </div>
 

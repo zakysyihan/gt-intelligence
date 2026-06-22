@@ -298,7 +298,7 @@ class GTAgent:
         except Exception:
             return "Sesi Baru"
 
-    def ask(self, question: str) -> AgentResponse:
+    def ask(self, question: str, context: list[dict] | None = None) -> AgentResponse:
         """Process a natural language question and return grounded results.
 
         Uses a ReAct (Reason-Act-Observe) loop:
@@ -306,6 +306,10 @@ class GTAgent:
         2. Execute appropriate action (SQL, exploration, clarifying question, chain query)
         3. Observe if result is complete
         4. Repeat until answer is ready or max 3 iterations
+
+        Args:
+            question: The user's question
+            context: Previous conversation messages for follow-up context
         """
         response = AgentResponse(question=question)
 
@@ -321,8 +325,20 @@ Price range: Rp {self._data_stats['price_range'][0]:,} - Rp {self._data_stats['p
 """
 
         # ReAct loop setup (max 3 iterations)
+        # Include conversation context for follow-up questions
+        system_msg = {"role": "system", "content": REACT_SYSTEM_PROMPT}
+        context_block = ""
+        if context and len(context) > 1:
+            # Include previous user/assistant exchanges (skip the last user msg)
+            prev = context[:-1]
+            if prev:
+                context_block = "\n\nPrevious conversation context:\n"
+                for m in prev[-6:]:  # Last 3 exchanges max
+                    role = "User" if m["role"] == "user" else "Analyst"
+                    context_block += f"{role}: {m['content'][:200]}\n"
+
         conversation_history = [
-            {"role": "system", "content": REACT_SYSTEM_PROMPT},
+            system_msg,
             {
                 "role": "user",
                 "content": f"""{context_prompt}
@@ -331,8 +347,9 @@ Price range: Rp {self._data_stats['price_range'][0]:,} - Rp {self._data_stats['p
 
 Schema:
 {schema_str}
+{context_block}
 
-Question: {question}""",
+Current question: {question}""",
             },
         ]
 

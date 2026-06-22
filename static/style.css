@@ -484,6 +484,12 @@ body {
 }
 .chart-expand-btn:hover { background: var(--primary-light); }
 
+.chat-chart-container {
+    margin: 8px 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
 .chart-modal {
     display: none;
     position: fixed;
