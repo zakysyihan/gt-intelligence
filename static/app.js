@@ -332,13 +332,25 @@ function renderQuadrantChart(products) {
         { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 11, color: '#dc2626' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
     ];
 
+    // Generate major tick values only (powers of 10)
+    function majorTicks(min, max) {
+        const ticks = [];
+        let v = Math.pow(10, Math.floor(Math.log10(min)));
+        while (v <= max * 10) {
+            if (v >= min * 0.5) ticks.push(v);
+            v *= 10;
+        }
+        return ticks;
+    }
+
     plotChart('chart-quadrant', traces, {
         ...CHART_LAYOUT,
         xaxis: {
             title: 'Produk Terjual/Hari', type: 'log',
             range: [Math.log10(xMin), Math.log10(xMax)],
             gridcolor: '#e2e8f0',
-            dtick: 'D1', showminorgrid: false,
+            tickvals: majorTicks(xMin, xMax),
+            tickformat: '.0s',
         },
         yaxis: {
             title: 'Rating', range: [yMin, yMax],
@@ -394,19 +406,32 @@ function renderDemandPriceQuadrant(products) {
         { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 11, color: '#dc2626' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
     ];
 
+    // Generate major tick values only (powers of 10)
+    function majorTicks(min, max) {
+        const ticks = [];
+        let v = Math.pow(10, Math.floor(Math.log10(min)));
+        while (v <= max * 10) {
+            if (v >= min * 0.5) ticks.push(v);
+            v *= 10;
+        }
+        return ticks;
+    }
+
     plotChart('chart-distribution', traces, {
         ...CHART_LAYOUT,
         xaxis: {
             title: 'Produk Terjual/Hari', type: 'log',
             range: [Math.log10(xMin), Math.log10(xMax)],
             gridcolor: '#e2e8f0',
-            dtick: 'D1', showminorgrid: false,
+            tickvals: majorTicks(xMin, xMax),
+            tickformat: '.0s',
         },
         yaxis: {
             title: 'Harga (IDR)', type: 'log',
             range: [Math.log10(yMin), Math.log10(yMax)],
             gridcolor: '#e2e8f0',
-            dtick: 'D1', showminorgrid: false,
+            tickvals: majorTicks(yMin, yMax),
+            tickformat: '.0s',
         },
         shapes, annotations,
         height: 300,
