@@ -92,6 +92,39 @@ graph LR
 5. **Validate** — 8 checks: schema, types, nulls, ranges, dedup, geography, category, row count. All must pass.
 6. **Curate** — Write to SQLite with indexes on subcategory, province, and category.
 
+### Transformation Logic
+
+Applied during steps 3-5 (Clean → LLM Parse → Validate):
+
+| Step | Logic | Example |
+|------|-------|---------|
+| Dedup | Remove duplicates by `product_url` (keep first) | Same product listed twice → keep one |
+| Price normalize | Remove "Rp" prefix, dots → integer | "Rp 15.000" → 15000 |
+| sold_count normalize | Convert shorthand to integer | "1rb+" → 1000, "10rb+" → 10000 |
+| Parse flavor | Match known keywords from product_name | "Sapi Panggang" → sapi_panggang |
+| Parse weight | Regex for weight patterns | "68g", "100gr", "250ml" → 68g |
+| Parse variant | Match known variant keywords | "Large", "Pack", "Box" → large/pack/box |
+| Province mapping | Map city to province | "Bandung" → "Jawa Barat" |
+| Price bucket | Computed column | <15K: cheap, 15K-75K: mid, >75K: expensive |
+| Rating category | Computed column | <3.5: low, 3.5-4.5: medium, ≥4.5: high |
+
+**LLM Parse:** DeepSeek V4 Flash extracts flavor/weight/variant in batches of 10 products per API call. Regex covers ~60% of cases; LLM improves accuracy to ~90%. Cost: ~$0.01 for 1,317 products.
+
+### Validation Rules
+
+| Check | Rule | Fail Action |
+|-------|------|-------------|
+| Schema | All 17 required fields present | Stop pipeline, log missing fields |
+| Type | price is int, rating is float, sold_count is int | Coerce or drop row |
+| Null | 0 nulls in price, sold_count, subcategory, shop_location | Drop row |
+| Range | price > 0, rating 0-5, sold_count >= 0 | Drop row |
+| Dedup | Unique product_url | Keep first occurrence |
+| Geography | shop_location must be Java Island cities | Drop row |
+| Category | category field must be non-empty | Drop row |
+| Row count | At least 500 rows after cleaning | Warn, continue |
+
+**Why staging matters:** If transformation has a bug, re-run from staging without re-scraping. Raw data is preserved.
+
 ### 3.2 Query Flow (Online — Agentic)
 
 ```mermaid
