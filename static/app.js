@@ -296,10 +296,10 @@ function renderQuadrantChart(products) {
     // X-axis (log): range centered on median
     const xMin = Math.max(0.1, medDemand / 10);
     const xMax = medDemand * 10;
-    // Y-axis (linear): range centered on median, capped at 5
+    // Y-axis: range with padding, max at 5.2 (but hide 5.2 label)
     const yPad = Math.max(0.5, (5 - medRating) * 0.5);
-    const yMin = Math.max(0, medRating - yPad);
-    const yMax = 5; // Cap at max rating
+    const yMin = Math.max(4.0, medRating - yPad);
+    const yMax = 5.2;
 
     const subcats = [...new Set(products.map(p => p.subcategory))];
     const traces = subcats.map((sc, i) => {
@@ -319,20 +319,20 @@ function renderQuadrantChart(products) {
         { type: 'line', x0: xMin, x1: xMax, y0: medRating, y1: medRating, line: { color: '#94a3b8', dash: 'dash', width: 1 } },
     ];
 
-    // Labels centered in each quadrant
+    // Labels — positioned at edges of each quadrant for visibility
     const xLow = Math.sqrt(xMin * medDemand);
     const xHigh = Math.sqrt(medDemand * xMax);
-    const yLow = (yMin + medRating) / 2;
-    const yHigh = (medRating + yMax) / 2;
+    const yLow = yMin + 0.05;
+    const yHigh = yMax - 0.15;
 
     const annotations = [
-        { x: xHigh, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 11, color: '#059669' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
-        { x: xLow, y: yHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 11, color: '#2563eb' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
-        { x: xHigh, y: yLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 11, color: '#d97706' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
-        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 11, color: '#dc2626' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
+        { x: xHigh, y: yHigh, text: '⭐ Winning Formula', showarrow: false, font: { size: 12, color: '#059669', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#059669', borderwidth: 1, borderpad: 4 },
+        { x: xLow, y: yHigh, text: '💎 Hidden Gem', showarrow: false, font: { size: 12, color: '#2563eb', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#2563eb', borderwidth: 1, borderpad: 4 },
+        { x: xHigh, y: yLow, text: '⚠️ Volume Only', showarrow: false, font: { size: 12, color: '#d97706', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#d97706', borderwidth: 1, borderpad: 4 },
+        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 12, color: '#dc2626', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#dc2626', borderwidth: 1, borderpad: 4 },
     ];
 
-    // Generate major tick values only (powers of 10)
+    // Major ticks only on x-axis, fewer ticks on y-axis
     function majorTicks(min, max) {
         const ticks = [];
         let v = Math.pow(10, Math.floor(Math.log10(min)));
@@ -355,6 +355,8 @@ function renderQuadrantChart(products) {
         yaxis: {
             title: 'Rating', range: [yMin, yMax],
             gridcolor: '#e2e8f0',
+            dtick: 0.2,
+            tickvals: [4.4, 4.6, 4.8, 5.0],
         },
         shapes, annotations,
         height: 300,
@@ -400,10 +402,10 @@ function renderDemandPriceQuadrant(products) {
     const yHigh = Math.sqrt(medPrice * yMax);
 
     const annotations = [
-        { x: xHigh, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 11, color: '#059669' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
-        { x: xLow, y: yHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 11, color: '#2563eb' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
-        { x: xHigh, y: yLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 11, color: '#d97706' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
-        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 11, color: '#dc2626' }, bgcolor: 'rgba(255,255,255,0.8)', borderpad: 3 },
+        { x: xHigh, y: yHigh, text: '⭐ High Value', showarrow: false, font: { size: 12, color: '#059669', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#059669', borderwidth: 1, borderpad: 4 },
+        { x: xLow, y: yHigh, text: '💎 Budget Volume', showarrow: false, font: { size: 12, color: '#2563eb', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#2563eb', borderwidth: 1, borderpad: 4 },
+        { x: xHigh, y: yLow, text: '⚠️ Expensive Niche', showarrow: false, font: { size: 12, color: '#d97706', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#d97706', borderwidth: 1, borderpad: 4 },
+        { x: xLow, y: yLow, text: '❌ Avoid', showarrow: false, font: { size: 12, color: '#dc2626', family: 'Inter, sans-serif' }, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#dc2626', borderwidth: 1, borderpad: 4 },
     ];
 
     // Generate major tick values only (powers of 10)
